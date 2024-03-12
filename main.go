@@ -11,11 +11,9 @@ import (
 func main() {
 	cmd := &cli.Command{
 		Commands: []*cli.Command{{
-			Name:  "start",
-			Usage: "start service",
-			Action: func(context.Context, *cli.Command) error {
-				return nil
-			},
+			Name:   "start",
+			Usage:  "start service",
+			Action: router,
 		},
 			{
 				Name:  "console",
