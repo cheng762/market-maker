@@ -2,10 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 
 	"github.com/urfave/cli/v3"
+
+	"github.com/cheng762/market-maker/service/data_adaptor"
+)
+
+var (
+	startDateFlag   = &cli.StringFlag{Name: "start", Usage: "起始时间（RFC3339，如 2025-09-01T00:00:00Z，或 Unix 秒时间戳）", Aliases: []string{"s"}}
+	concurrencyFlag = &cli.IntFlag{Name: "concurrency", Usage: "并发请求数（默认 5）", Value: 3}
 )
 
 func main() {
@@ -19,9 +27,18 @@ func main() {
 			{
 				Name:  "datafetch",
 				Usage: "start data adaptor  service",
-				Action: func(context.Context, *cli.Command) error {
+				Action: func(ctx context.Context, c *cli.Command) error {
+
+					startStr := c.String(startDateFlag.Name)
+					concurrency := c.Int(concurrencyFlag.Name)
+					if startStr == "" {
+						return errors.New("必须指定 -start 参数，例如 -start 2025-09-01T00:00:00Z 或 -start 1725148800")
+					}
+
+					data_adaptor.Fetch(startStr, concurrency)
 					return nil
 				},
+				Flags: []cli.Flag{startDateFlag, concurrencyFlag},
 			},
 			{
 				Name:  "console",
