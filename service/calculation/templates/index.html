@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合约收益计算器 (实时预览)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f4f7f9; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #333; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 150px; gap: 15px; align-items: center; margin-bottom: 20px; }
+        label { font-weight: 500; }
+        select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 20px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%;}
+        .btn-add { background-color: #28a745; }
+        .btn-add:hover { background-color: #218838; }
+        .btn-calculate { background-color: #007bff; margin-top: 20px; }
+        .btn-calculate:hover { background-color: #0056b3; }
+        .btn-calculate:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        .btn-remove { background-color: #dc3545; padding: 5px 10px; font-size: 14px; }
+        .error-message { text-align: center; padding: 15px; margin-top: 20px; border-radius: 5px; background-color: #ffebee; border: 1px solid #ffcdd2; color: #c62828; display: none; }
+        /* 新增：实时状态显示样式 */
+        .realtime-status { text-align: center; padding: 15px; margin-top: 20px; margin-bottom: 20px; border-radius: 5px; background-color: #e7f3ff; border: 1px solid #b3d7ff; color: #333; font-size: 1.1em;}
+        .realtime-status span { font-weight: bold; margin: 0 10px; color: #0056b3; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; word-wrap: break-word; }
+        th { background-color: #f2f2f2; }
+        .pnl-positive { color: #2e7d32; }
+        .pnl-negative { color: #c62828; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>合约收益计算器 (实时预览)</h1>
+
+    <div id="operation-form">
+        <div class="form-grid">
+            <div><label for="operation">操作类型</label><select id="operation"><option value="open">开仓</option><option value="add">加仓</option><option value="reduce">减仓</option><option value="close">平仓</option></select></div>
+            <div><label for="price">价格 (USDT)</label><input type="number" id="price" placeholder="例如: 68000.1234" step="0.0001" min="0"></div>
+            <div><label for="quantity">数量 (USDT)</label><input type="number" id="quantity" placeholder="例如: 1000.50" step="0.01" min="0"></div>
+            <div style="align-self: end;"><button id="add-op-btn" class="btn-add">添加操作</button></div>
+        </div>
+    </div>
+
+    <div id="error-message" class="error-message"></div>
+
+    <!-- 新增: 实时状态显示区域 -->
+    <div id="realtime-status-display" class="realtime-status" style="display: none;"></div>
+
+    <h2>待计算的操作序列</h2>
+    <table id="pending-ops-table">
+        <thead><tr><th style="width: 15%;">操作</th><th style="width: 25%;">价格</th><th style="width: 25%;">数量(U)</th><th style="width: 15%;">移除</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <button id="calculate-all-btn" class="btn-calculate" disabled>计算收益</button>
+    <button id="reset-btn" class="btn-add" style="background-color: #ffc107; color: black; margin-top: 10px;">全部重置</button>
+
+    <h2>计算结果</h2>
+    <table id="results-table">
+        <thead>
+        <tr>
+            <th>操作</th>
+            <th>实现盈亏(PNL)</th>
+            <th>持仓均价</th>
+            <!-- 修改：移除了"总仓位(币)" -->
+            <th>总仓位(U)</th>
+            <th>消息</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

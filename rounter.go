@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,29 +15,25 @@ import (
 func router(context.Context, *cli.Command) error {
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
-	router := gin.Default()
+	r := gin.Default()
 
-	router.GET("/cal", func(c *gin.Context) {
-		c.Header("Content-Type", "text/html; charset=utf-8")
-		c.String(http.StatusOK, calculation.HtmlPage)
+	r.LoadHTMLGlob("service/calculation/templates/*")
+
+	// 设置静态文件服务, /static URL 路径会映射到 ./static 目录
+	r.Static("/static", "./service/calculation/static")
+
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
 	// API
-	router.POST("/calc", func(c *gin.Context) {
-		var trades []calculation.Trade
-		if err := c.ShouldBindJSON(&trades); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		res := calculation.CalcTrades(trades)
-		//if err != nil {
-		//	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		//	return
-		//}
-		c.JSON(http.StatusOK, res)
-	})
-
+	r.POST("/calculate", calculation.HandleBatchCalculation)
 	// By default it serves on :8080 unless a
 	// PORT environment variable was defined.
-	return router.Run()
+	port := ":8080"
+	fmt.Printf("服务已启动，请在浏览器中访问 http://localhost%s\n", port)
+	if err := r.Run(port); err != nil {
+		log.Fatalf("启动服务失败: %v", err)
+	}
+	return nil
 }
