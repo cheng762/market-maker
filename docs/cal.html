@@ -13,6 +13,43 @@
   <div class="calculator">
     <div class="header">
       <h1>涨跌幅计算器</h1>
+      <button class="settings-btn" id="settingsBtn" title="API配置">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- 顶部信息栏：币种 + 实时价格 + 持仓信息 -->
+    <div class="top-info-bar">
+      <div class="symbol-input-wrapper">
+        <label for="symbol">币种</label>
+        <input type="text" id="symbol" value="BTC-USDT" placeholder="如: BTC-USDT"/>
+      </div>
+      
+      <!-- 价格信息 -->
+      <div id="priceInfo" style="display:none;" class="price-info-inline">
+        <div class="price-item"><span>开盘:</span><strong id="openPrice">-</strong></div>
+        <div class="price-item"><span>当前:</span><strong id="currentPrice">-</strong></div>
+        <div class="price-item"><span>最高:</span><strong id="highPrice">-</strong></div>
+        <div class="price-item"><span>最低:</span><strong id="lowPrice">-</strong></div>
+        <div class="price-item"><span>涨跌:</span><strong id="dailyChange">-</strong></div>
+        <div class="price-item"><span>费率:</span><strong id="fundingRate">-</strong></div>
+      </div>
+      
+      <!-- 持仓信息 -->
+      <div id="positionInfo" style="display:none;" class="position-info-inline">
+        <div class="position-item"><span>方向:</span><strong id="positionSide">-</strong></div>
+        <div class="position-item"><span>数量:</span><strong id="positionSize">-</strong></div>
+        <div class="position-item"><span>均价:</span><strong id="positionAvgPrice">-</strong></div>
+        <div class="position-item"><span>爆仓价:</span><strong id="liquidationPrice" class="negative">-</strong></div>
+        <div class="position-item"><span>盈亏:</span><strong id="unrealizedPnl">-</strong></div>
+        <div class="position-item"><span>杠杆:</span><strong id="leverage">-</strong></div>
+      </div>
+      
+      <!-- 消息提示 -->
+      <div id="message" style="display:none;"></div>
     </div>
     
     <div class="content">
@@ -21,34 +58,6 @@
         <!-- 左侧：基础设置 -->
         <div class="basic-settings">
           <div class="section">
-            <h3>基础设置</h3>
-            <div class="form-group">
-              <label for="symbol">币种</label>
-              <input type="text" id="symbol" value="BTC-USDT" placeholder="如: BTC-USDT"/>
-            </div>
-            
-            <!-- 精度显示（只读） -->
-            <div class="precision-display" id="precisionDisplay" style="display:none;">
-              <span class="precision-label">当前精度:</span>
-              <span class="precision-value" id="precisionValue">2位小数</span>
-              <span class="precision-note">(自动检测)</span>
-            </div>
-            
-            <!-- 消息提示 -->
-            <div id="message" style="display:none;"></div>
-
-            <!-- 价格信息 -->
-            <div id="priceInfo" style="display:none;" class="price-info">
-              <h4>实时价格信息</h4>
-              <div class="price-grid">
-                <div class="price-item"><span>开盘价:</span><strong id="openPrice">-</strong></div>
-                <div class="price-item"><span>当前价:</span><strong id="currentPrice">-</strong></div>
-                <div class="price-item"><span>最高价:</span><strong id="highPrice">-</strong></div>
-                <div class="price-item"><span>最低价:</span><strong id="lowPrice">-</strong></div>
-                <div class="price-item"><span>当日涨跌幅:</span><strong id="dailyChange">-</strong></div>
-                <div class="price-item"><span>资金费率:</span><strong id="fundingRate">-</strong></div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -56,9 +65,13 @@
         <div class="position-calculation">
           <div class="section">
             <h3>持仓计算</h3>
+            
             <div class="form-group">
               <label for="holdPrice">持仓价格</label>
-              <input type="number" id="holdPrice" step="0.00000001" placeholder="输入您的持仓价格"/>
+              <div class="input-with-button">
+                <input type="number" id="holdPrice" step="0.00000001" placeholder="输入您的持仓价格"/>
+                <button type="button" id="syncPositionPrice" class="sync-btn" title="同步持仓均价">同步</button>
+              </div>
             </div>
             <div class="form-group">
               <label for="targetPercent">期望幅度 (%)（相对持仓价）</label>
@@ -130,9 +143,36 @@
     </div>
   </div>
 
+  <!-- API配置弹窗 -->
+  <div id="apiModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>欧意API配置</h3>
+        <button class="close-btn" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="apiKey">API Key</label>
+          <input type="password" id="apiKey" placeholder="输入您的API Key"/>
+        </div>
+        <div class="form-group">
+          <label for="apiSecret">API Secret</label>
+          <input type="password" id="apiSecret" placeholder="输入您的API Secret"/>
+        </div>
+        <div class="form-group">
+          <label for="apiPassphrase">API Passphrase</label>
+          <input type="password" id="apiPassphrase" placeholder="输入您的API Passphrase"/>
+        </div>
+        <button id="saveApiConfig" class="btn-primary">保存配置</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 引入 jQuery 和 DataTables JS -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <!-- 引入 CryptoJS 用于API签名 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -10,24 +10,73 @@ class Calculator {
     this.lastModified = null; // 'percent' | 'price' | 'daily'
     this.tickerInterval = null;
     this.fundingRateInterval = null; // 新增：资金费率更新定时器
+    this.positionInterval = null; // 新增：持仓数据更新定时器
     this.currentPrecision = 2; // 默认精度
     this.symbolInputTimeout = null; // 防抖定时器
     this.isLoadingPrice = false; // 防止重复请求
     this.isLoadingHistory = false; // 防止重复请求
     this.historyTable = null; // DataTables 实例
     this.currentFundingRate = null; // 当前资金费率
+    this.apiConfig = this.loadApiConfig(); // API配置
+    this.positionData = null; // 持仓数据
     this.init();
   }
 
   init() {
     this.bindEvents();
-    this.fetchPriceData(); // 页面加载时自动获取 BTC-USDT
+    this.loadCachedSymbol(); // 加载缓存的币种
+    this.updateApiConfigUI(); // 更新API配置UI状态
+    this.fetchPriceData(); // 页面加载时自动获取价格数据
+    
+    // 如果已配置API，自动获取持仓信息
+    if (this.apiConfig) {
+      setTimeout(() => {
+        this.fetchPositionData();
+      }, 1000); // 延迟1秒，等待价格数据加载完成
+    }
   }
 
   bindEvents() {
+    // 设置按钮 - 打开弹窗
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      this.openModal();
+    });
+
+    // 关闭弹窗
+    document.getElementById('closeModal').addEventListener('click', () => {
+      this.closeModal();
+    });
+
+    // 点击弹窗外部关闭
+    document.getElementById('apiModal').addEventListener('click', (e) => {
+      if (e.target.id === 'apiModal') {
+        this.closeModal();
+      }
+    });
+
+    // ESC键关闭弹窗
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeModal();
+      }
+    });
+
+    // 保存API配置
+    document.getElementById('saveApiConfig').addEventListener('click', () => {
+      this.saveApiConfig();
+    });
+
+    // 同步持仓价格按钮
+    document.getElementById('syncPositionPrice').addEventListener('click', () => {
+      this.syncPositionPrice();
+    });
+
     // 币种输入自动获取（防抖）
     document.getElementById('symbol').addEventListener('input', (e) => {
       const symbol = e.target.value.trim();
+      
+      // 保存币种到缓存
+      this.saveSymbolCache(symbol);
       
       // 清除之前的定时器
       if (this.symbolInputTimeout) {
@@ -106,8 +155,9 @@ class Calculator {
   clearAllData() {
     this.currentData = { openPrice: null, highPrice: null, lowPrice: null, currentPrice: null, symbol: '' };
     this.currentFundingRate = null;
+    this.positionData = null;
     document.getElementById('priceInfo').style.display = 'none';
-    document.getElementById('precisionDisplay').style.display = 'none';
+    document.getElementById('positionInfo').style.display = 'none';
     document.getElementById('historySummary').style.display = 'none';
     document.getElementById('historyResults').style.display = 'none';
     document.getElementById('results').style.display = 'none';
@@ -127,6 +177,246 @@ class Calculator {
     if (this.fundingRateInterval) {
       clearInterval(this.fundingRateInterval);
       this.fundingRateInterval = null;
+    }
+    if (this.positionInterval) {
+      clearInterval(this.positionInterval);
+      this.positionInterval = null;
+    }
+  }
+
+  // 打开弹窗
+  openModal() {
+    document.getElementById('apiModal').classList.add('show');
+    document.body.style.overflow = 'hidden'; // 防止背景滚动
+  }
+
+  // 关闭弹窗
+  closeModal() {
+    document.getElementById('apiModal').classList.remove('show');
+    document.body.style.overflow = ''; // 恢复滚动
+  }
+
+  // 加载缓存的币种
+  loadCachedSymbol() {
+    const cachedSymbol = localStorage.getItem('cached_symbol');
+    if (cachedSymbol) {
+      document.getElementById('symbol').value = cachedSymbol;
+      this.currentData.symbol = cachedSymbol;
+    }
+  }
+
+  // 保存币种到缓存
+  saveSymbolCache(symbol) {
+    if (symbol) {
+      localStorage.setItem('cached_symbol', symbol);
+    } else {
+      localStorage.removeItem('cached_symbol');
+    }
+  }
+
+  // 加载API配置
+  loadApiConfig() {
+    const config = localStorage.getItem('okx_api_config');
+    if (config) {
+      try {
+        return JSON.parse(config);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // 保存API配置
+  saveApiConfig() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const apiSecret = document.getElementById('apiSecret').value.trim();
+    const apiPassphrase = document.getElementById('apiPassphrase').value.trim();
+
+    if (!apiKey || !apiSecret || !apiPassphrase) {
+      this.showMessage('请填写完整的API配置信息', 'error');
+      return;
+    }
+
+    const config = { apiKey, apiSecret, apiPassphrase };
+    localStorage.setItem('okx_api_config', JSON.stringify(config));
+    this.apiConfig = config;
+    
+    this.showMessage('API配置保存成功', 'success');
+    setTimeout(() => this.hideMessage(), 2000);
+    
+    // 关闭弹窗
+    this.closeModal();
+    
+    // 保存后立即获取持仓数据
+    this.fetchPositionData();
+  }
+
+  // 更新API配置UI
+  updateApiConfigUI() {
+    if (this.apiConfig) {
+      document.getElementById('apiKey').value = this.apiConfig.apiKey;
+      document.getElementById('apiSecret').value = this.apiConfig.apiSecret;
+      document.getElementById('apiPassphrase').value = this.apiConfig.apiPassphrase;
+    }
+  }
+
+  // 生成OKX API签名
+  generateSignature(timestamp, method, requestPath, body = '') {
+    const message = timestamp + method + requestPath + body;
+    const hmac = CryptoJS.HmacSHA256(message, this.apiConfig.apiSecret);
+    return CryptoJS.enc.Base64.stringify(hmac);
+  }
+
+  // 获取持仓数据
+  async fetchPositionData() {
+    if (!this.apiConfig) {
+      console.log('未配置API密钥，跳过持仓数据获取');
+      return;
+    }
+
+    const symbol = document.getElementById('symbol').value.trim();
+    if (!symbol) return;
+
+    try {
+      // 将现货交易对转换为永续合约
+      const instId = symbol.replace('-', '-') + '-SWAP';
+      const timestamp = new Date().toISOString();
+      const method = 'GET';
+      const requestPath = `/api/v5/account/positions?instType=SWAP&instId=${instId}`;
+      
+      const signature = this.generateSignature(timestamp, method, requestPath);
+
+      const headers = {
+        'OK-ACCESS-KEY': this.apiConfig.apiKey,
+        'OK-ACCESS-SIGN': signature,
+        'OK-ACCESS-TIMESTAMP': timestamp,
+        'OK-ACCESS-PASSPHRASE': this.apiConfig.apiPassphrase,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch(`https://www.okx.com${requestPath}`, {
+        method: method,
+        headers: headers
+      });
+
+      const data = await response.json();
+
+      if (data.code === '0' && data.data?.length > 0) {
+        // 找到当前币种的持仓
+        const position = data.data.find(p => p.instId === instId);
+        if (position && parseFloat(position.pos) !== 0) {
+          this.positionData = position;
+          this.updatePositionDisplay();
+          // 不再自动填充持仓价格，由用户点击同步按钮
+        } else {
+          this.positionData = null;
+          document.getElementById('positionInfo').style.display = 'none';
+        }
+      } else {
+        this.positionData = null;
+        document.getElementById('positionInfo').style.display = 'none';
+      }
+    } catch (err) {
+      console.error('获取持仓数据失败：', err);
+      this.positionData = null;
+      document.getElementById('positionInfo').style.display = 'none';
+    }
+  }
+
+  // 更新持仓信息显示
+  updatePositionDisplay() {
+    const positionInfo = document.getElementById('positionInfo');
+    
+    if (!this.positionData) {
+      if (positionInfo) {
+        positionInfo.style.display = 'none';
+      }
+      return;
+    }
+
+    const pos = this.positionData;
+    
+    // 确保精度值有效
+    const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+    
+    // 持仓方向
+    const posSide = pos.posSide === 'long' ? '做多' : (pos.posSide === 'short' ? '做空' : pos.posSide);
+    const positionSideEl = document.getElementById('positionSide');
+    if (positionSideEl) {
+      positionSideEl.textContent = posSide;
+      // 修复：当posSide既不是long也不是short时，应该有默认的className处理
+      if (pos.posSide === 'long') {
+        positionSideEl.className = 'positive';
+      } else if (pos.posSide === 'short') {
+        positionSideEl.className = 'negative';
+      } else {
+        positionSideEl.className = 'neutral'; // 添加默认情况处理
+      }
+    }
+    
+    // 持仓数量
+    const positionSizeEl = document.getElementById('positionSize');
+    if (positionSizeEl) {
+      positionSizeEl.textContent = parseFloat(pos.margin).toFixed(4);
+    }
+    
+    // 持仓均价
+    const avgPx = parseFloat(pos.avgPx);
+    const positionAvgPriceEl = document.getElementById('positionAvgPrice');
+    if (positionAvgPriceEl && isFinite(avgPx)) {
+      positionAvgPriceEl.textContent = avgPx.toFixed(precision);
+    }
+    
+    // 爆仓价格
+    const liqPx = parseFloat(pos.liqPx);
+    const liquidationPriceEl = document.getElementById('liquidationPrice');
+    if (liquidationPriceEl) {
+      if (liqPx > 0 && isFinite(liqPx)) {
+        liquidationPriceEl.textContent = liqPx.toFixed(precision);
+      } else {
+        liquidationPriceEl.textContent = 'N/A';
+      }
+    }
+    
+    // 未实现盈亏
+    const upl = parseFloat(pos.upl);
+    const uplEl = document.getElementById('unrealizedPnl');
+    if (uplEl && isFinite(upl)) {
+      uplEl.textContent = `${upl >= 0 ? '+' : ''}${upl.toFixed(2)}`;
+      uplEl.className = upl >= 0 ? 'positive' : 'negative';
+    }
+    
+    // 杠杆倍数
+    const leverageEl = document.getElementById('leverage');
+    if (leverageEl) {
+      leverageEl.textContent = `${pos.lever}x`;
+    }
+    
+    if (positionInfo) {
+      positionInfo.style.display = 'flex';
+    }
+  }
+
+  // 同步持仓价格
+  syncPositionPrice() {
+    if (!this.positionData) {
+      this.showMessage('没有持仓数据，请先配置API并获取持仓信息', 'error');
+      setTimeout(() => this.hideMessage(), 2000);
+      return;
+    }
+
+    const avgPx = parseFloat(this.positionData.avgPx);
+    const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+    
+    if (avgPx > 0 && isFinite(avgPx)) {
+      document.getElementById('holdPrice').value = avgPx.toFixed(precision);
+      this.calculate();
+      this.showMessage('已同步持仓均价', 'success');
+      setTimeout(() => this.hideMessage(), 1500);
+    } else {
+      this.showMessage('持仓均价无效', 'error');
+      setTimeout(() => this.hideMessage(), 2000);
     }
   }
 
@@ -156,27 +446,7 @@ class Calculator {
     if (this.currentPrecision !== detectedPrecision) {
       this.currentPrecision = detectedPrecision;
       this.syncPrecisionSteps();
-      this.updatePrecisionDisplay();
-      this.showMessage(`已自动设置价格精度为 ${detectedPrecision} 位小数`, 'success');
-      
-      // 延迟一下再隐藏消息，让用户能看到
-      setTimeout(() => {
-        if (document.getElementById('message').textContent.includes('已自动设置价格精度')) {
-          this.hideMessage();
-        }
-      }, 2000);
-    } else {
-      this.updatePrecisionDisplay();
     }
-  }
-
-  // 更新精度显示
-  updatePrecisionDisplay() {
-    const precisionDisplay = document.getElementById('precisionDisplay');
-    const precisionValue = document.getElementById('precisionValue');
-    
-    precisionValue.textContent = `${this.currentPrecision}位小数`;
-    precisionDisplay.style.display = 'flex';
   }
 
   // 步进同步：期望点位与价格显示精度一致
@@ -280,6 +550,11 @@ class Calculator {
 
       // 自动获取历史数据
       this.fetchHistoryData();
+
+      // 如果配置了API，获取持仓数据
+      if (this.apiConfig) {
+        this.fetchPositionData();
+      }
 
     } catch (err) {
       console.error(err);
@@ -580,11 +855,12 @@ class Calculator {
     historyResults.style.display = 'block';
   }
 
-  // 启动自动更新 - 分离价格和资金费率更新
+  // 启动自动更新 - 分离价格、资金费率和持仓更新
   startAutoUpdate() {
     // 清理旧定时器
     if (this.tickerInterval) clearInterval(this.tickerInterval);
     if (this.fundingRateInterval) clearInterval(this.fundingRateInterval);
+    if (this.positionInterval) clearInterval(this.positionInterval);
     
     const symbol = this.currentData.symbol;
     
@@ -616,6 +892,17 @@ class Calculator {
         console.warn('资金费率刷新失败：', e);
       }
     }, 30000);
+
+    // 每 30 秒更新持仓数据（如果配置了API）
+    if (this.apiConfig) {
+      this.positionInterval = setInterval(async () => {
+        try {
+          await this.fetchPositionData();
+        } catch (e) {
+          console.warn('持仓数据刷新失败：', e);
+        }
+      }, 30000);
+    }
   }
 
   updatePriceDisplay() {
@@ -625,11 +912,18 @@ class Calculator {
     if (isFinite(openPrice) && isFinite(currentPrice)) {
       const dailyChangePercent = ((currentPrice - openPrice) / openPrice) * 100;
 
-      document.getElementById('openPrice').textContent   = openPrice.toFixed(this.currentPrecision);
-      document.getElementById('currentPrice').textContent = currentPrice.toFixed(this.currentPrecision);
+      // 确保精度值有效
+      const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+      
+      document.getElementById('openPrice').textContent = openPrice.toFixed(precision);
+      document.getElementById('currentPrice').textContent = currentPrice.toFixed(precision);
 
-      if (isFinite(highPrice)) document.getElementById('highPrice').textContent = highPrice.toFixed(this.currentPrecision);
-      if (isFinite(lowPrice))  document.getElementById('lowPrice').textContent  = lowPrice.toFixed(this.currentPrecision);
+      if (isFinite(highPrice)) {
+        document.getElementById('highPrice').textContent = highPrice.toFixed(precision);
+      }
+      if (isFinite(lowPrice)) {
+        document.getElementById('lowPrice').textContent = lowPrice.toFixed(precision);
+      }
 
       const dailyEl = document.getElementById('dailyChange');
       dailyEl.textContent = `${dailyChangePercent >= 0 ? '+' : ''}${dailyChangePercent.toFixed(2)}%`;
@@ -646,7 +940,7 @@ class Calculator {
         fundingRateEl.className = 'neutral';
       }
 
-      priceInfo.style.display = 'block';
+      priceInfo.style.display = 'flex';
     } else {
       priceInfo.style.display = 'none';
     }
@@ -701,7 +995,7 @@ class Calculator {
   calculate() {
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const { openPrice, currentPrice } = this.currentData;
-
+    
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');
       document.getElementById('results').style.display = 'none';

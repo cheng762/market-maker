@@ -25,21 +25,185 @@ body {
 }
 
 /* 头部 */
-.header { 
-  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); 
-  color:#fff; 
-  padding: 20px; 
-  text-align: center; 
+.header {
+  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  color:#fff;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.header h1 { 
-  font-size: 24px; 
-  font-weight: 600; 
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* 设置按钮 */
+.settings-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.settings-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 顶部信息栏 */
+.top-info-bar {
+  background: #f8f9fa;
+  border-bottom: 2px solid #e1e5e9;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.symbol-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.symbol-input-wrapper label {
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.symbol-input-wrapper input {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.symbol-input-wrapper input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* 顶部价格信息 - 自动换行显示 */
+.price-info-inline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.price-info-inline .price-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.price-info-inline .price-item span {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  display: inline;
+}
+
+.price-info-inline .price-item strong {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+  display: inline;
+}
+
+/* 持仓信息 - 与价格信息相同的布局 */
+.position-info-inline {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.position-info-inline .position-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.position-info-inline .position-item span {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  display: inline;
+}
+
+.position-info-inline .position-item strong {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
+  display: inline;
+}
+
+/* 消息提示 */
+#message {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+#message.error {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+#message.success {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+#message.loading {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 /* 内容区域 */
-.content { 
-  padding: 20px; 
+.content {
+  padding: 20px;
 }
 
 /* 区块样式 */
@@ -59,6 +223,35 @@ body {
   margin-bottom: 12px; 
   font-size:16px; 
   font-weight:600; 
+}
+
+/* 输入框带按钮 */
+.input-with-button {
+  display: flex;
+  gap: 8px;
+}
+
+.input-with-button input {
+  flex: 1;
+}
+
+.sync-btn {
+  width: auto;
+  min-width: 60px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.sync-btn:hover {
+  transform: translateY(-1px);
+}
+
+.sync-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 表单样式 */
@@ -115,13 +308,118 @@ button:active {
   transform: translateY(0);
 }
 
-/* 价格信息 */
-.price-info { 
-  background:#f8f9fa; 
-  padding:16px; 
-  border-radius:8px; 
-  margin-top:16px; 
+/* 次要按钮样式 */
+.btn-secondary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  margin-top: 8px;
 }
+
+.btn-secondary:hover {
+  transform: translateY(-1px);
+}
+
+/* 弹窗样式 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.3s;
+}
+
+.modal.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: #6b7280;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+  transform: none;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* 价格信息 */
+.price-info {
+  background:#f8f9fa;
+  padding:16px;
+  border-radius:8px;
+  margin-top:16px;
+}
+
 
 .price-grid { 
   display:grid; 
@@ -310,60 +608,6 @@ button:active {
   padding: 4px 0;
 }
 
-/* 精度显示样式 */
-.precision-display {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin-top: 12px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.precision-label {
-  color: #374151;
-  font-weight: 500;
-}
-
-.precision-value {
-  color: #0369a1;
-  font-weight: 600;
-}
-
-.precision-note {
-  color: #6b7280;
-  font-style: italic;
-  font-size: 12px;
-}
-
-/* 消息提示 */
-.message { 
-  padding:12px; 
-  border-radius:8px; 
-  margin-bottom: 16px; 
-  font-weight:500; 
-  font-size: 14px;
-}
-
-.message.error { 
-  background:#fef2f2; 
-  color:#dc2626; 
-  border:1px solid #fecaca; 
-}
-
-.message.success { 
-  background:#f0f9ff; 
-  color:#0369a1; 
-  border:1px solid #bae6fd; 
-}
-
-.loading { 
-  color:#6b7280; 
-  font-style: italic; 
-}
 
 /* 基础布局 - 移动端优先 */
 .top-section {
@@ -545,19 +789,6 @@ button:active {
     font-size: 14px;
   }
   
-  /* 消息提示优化 */
-  .message {
-    padding: 12px 18px;
-    font-size: 14px;
-    margin-bottom: 16px;
-  }
-
-  /* 精度显示优化 */
-  .precision-display {
-    margin-top: 12px;
-    font-size: 13px;
-    padding: 10px 14px;
-  }
 }
 
 /* 超大屏幕优化 (>= 1440px) */
@@ -634,6 +865,68 @@ button:active {
   
   .header h1 {
     font-size: 20px;
+  
+  .settings-btn {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .settings-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* 顶部信息栏移动端优化 */
+  .top-info-bar {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .symbol-input-wrapper {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .symbol-input-wrapper input {
+    font-size: 16px;
+  }
+
+  .price-info-inline {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .price-info-inline .price-item span {
+    font-size: 12px;
+  }
+
+  .price-info-inline .price-item strong {
+    font-size: 13px;
+  }
+
+  #message {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  /* 弹窗移动端优化 */
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
   }
   
   .content {
@@ -754,21 +1047,6 @@ button:active {
     max-height: 350px !important;
   }
   
-  .message {
-    font-size: 14px;
-    padding: 12px;
-  }
-
-  .precision-display {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    font-size: 14px;
-  }
-  
-  .precision-note {
-    font-size: 13px;
-  }
 }
 
 /* iPhone 15 Pro Max 特殊优化 */
