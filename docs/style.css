@@ -563,23 +563,27 @@ button:active {
   display: none !important;
 }
 
-/* 表格列宽设置 - 调整为8列 */
+/* 表格列宽设置 - 调整为10列 */
 #historyTable th:nth-child(1),
-#historyTable td:nth-child(1) { width: 12%; } /* 日期 */
+#historyTable td:nth-child(1) { width: 10%; } /* 日期 */
 #historyTable th:nth-child(2),
-#historyTable td:nth-child(2) { width: 12%; } /* 开盘 */
+#historyTable td:nth-child(2) { width: 10%; } /* 开盘 */
 #historyTable th:nth-child(3),
-#historyTable td:nth-child(3) { width: 12%; } /* 最高 */
+#historyTable td:nth-child(3) { width: 10%; } /* 最高 */
 #historyTable th:nth-child(4),
-#historyTable td:nth-child(4) { width: 12%; } /* 最低 */
+#historyTable td:nth-child(4) { width: 8%; }  /* 最高时间 */
 #historyTable th:nth-child(5),
-#historyTable td:nth-child(5) { width: 12%; } /* 收盘 */
+#historyTable td:nth-child(5) { width: 10%; } /* 最低 */
 #historyTable th:nth-child(6),
-#historyTable td:nth-child(6) { width: 15%; } /* 交易量 */
+#historyTable td:nth-child(6) { width: 8%; }  /* 最低时间 */
 #historyTable th:nth-child(7),
-#historyTable td:nth-child(7) { width: 12%; } /* 当日涨跌幅 */
+#historyTable td:nth-child(7) { width: 10%; } /* 收盘 */
 #historyTable th:nth-child(8),
-#historyTable td:nth-child(8) { width: 13%; } /* 累计涨跌幅 */
+#historyTable td:nth-child(8) { width: 12%; } /* 交易量 */
+#historyTable th:nth-child(9),
+#historyTable td:nth-child(9) { width: 10%; } /* 当日涨跌幅 */
+#historyTable th:nth-child(10),
+#historyTable td:nth-child(10) { width: 12%; } /* 累计涨跌幅 */
 
 /* 汇总信息 */
 .summary-info { 

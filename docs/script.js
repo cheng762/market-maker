@@ -566,6 +566,69 @@ class Calculator {
     }
   }
 
+  // 新增：获取详细K线数据以匹配最高/最低价时间
+  async fetchDetailedHistoryAndMatch(symbol, days, dailyKlines) {
+    // 策略：天数少时用5m精度高，天数多时用1H避免请求过多
+    let bar = '1H';
+    if (days <= 7) {
+      bar = '5m';
+    }
+    
+    this.showMessage(`正在获取详细时间数据 (粒度: ${bar})...`, 'loading');
+
+    // 修正逻辑：我们要获取直到 dailyKlines 中 *最旧* 的日期为止
+    // dailyKlines 是按时间正序排列的 (index 0 是最旧的)
+    const oldestTimestamp = parseInt(dailyKlines[0][0]);
+    
+    const allDetailedCandles = [];
+    let currentCursor = ''; // 分页游标 (请求比该ID更旧的数据)
+    
+    // 增加最大请求限制，防止死循环，同时增加到60次以确保覆盖
+    const MAX_REQUESTS = 60; 
+    let requestCount = 0;
+
+    try {
+      while (requestCount < MAX_REQUESTS) {
+        let url = `https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=${bar}&limit=100`;
+        if (currentCursor) {
+          url += `&after=${currentCursor}`;
+        }
+
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.code !== '0' || !data.data || data.data.length === 0) {
+          break;
+        }
+
+        const candles = data.data;
+        allDetailedCandles.push(...candles);
+        
+        // OKX返回的数据是按时间倒序的（最新的在前）
+        // cursor 设置为本页最后一条（最旧一条）的时间戳
+        currentCursor = candles[candles.length - 1][0];
+        
+        // 修正：如果获取到的数据的最旧时间 已经小于 我们需要的起始时间，说明已经覆盖到了
+        // 注意 OKX 返回的是 K线的开始时间
+        if (parseInt(currentCursor) < oldestTimestamp) {
+          break;
+        }
+
+        requestCount++;
+        // 简单的防速率限制延迟
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      console.log(`获取到 ${allDetailedCandles.length} 条详细K线数据`);
+      
+      return { detailedCandles: allDetailedCandles, bar: bar };
+
+    } catch (err) {
+      console.warn('获取详细历史数据失败:', err);
+      return { detailedCandles: [], bar: bar };
+    }
+  }
+
   async fetchHistoryData() {
     const symbol = document.getElementById('symbol').value.trim();
     const days = parseInt(document.getElementById('historyDays').value);
@@ -582,20 +645,22 @@ class Calculator {
     this.showMessage('正在获取历史数据...', 'loading');
 
     try {
-      // 获取历史K线数据
+      // 1. 获取基础日线数据
       const resp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1D&limit=${days}`);
       const data = await resp.json();
 
-      console.log('历史数据API响应:', data); // 调试信息
+      console.log('历史数据API响应:', data);
 
       if (data.code !== '0' || !data.data?.length) {
         throw new Error('获取历史数据失败，请检查币种格式或稍后重试');
       }
 
       // 数据是按时间倒序的，需要反转为正序，并只取需要的天数
+      // 注意：API返回的数据可能比limit多或者正好，这里截取
       const klines = data.data.slice(0, days).reverse();
       
-      console.log('处理后的K线数据长度:', klines.length); // 调试信息
+      // 2. 获取详细数据以匹配时间
+      const { detailedCandles, bar } = await this.fetchDetailedHistoryAndMatch(symbol, days, klines);
       
       // 收集所有价格用于精度检测
       const allPrices = [];
@@ -603,13 +668,12 @@ class Calculator {
         allPrices.push(parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4]));
       });
       
-      // 如果还没有当前价格数据，也从历史数据中自动设置精度
       if (!this.currentData.currentPrice) {
         this.autoSetPrecision(allPrices);
       }
       
-      const historyData = this.processHistoryData(klines);
-      console.log('处理后的历史数据:', historyData); // 调试信息
+      const historyData = this.processHistoryData(klines, detailedCandles, bar);
+      console.log('处理后的历史数据:', historyData);
       
       this.displayHistoryResults(historyData);
       this.showMessage(`历史数据获取成功 (${historyData.length}天)`, 'success');
@@ -624,10 +688,10 @@ class Calculator {
     }
   }
 
-  processHistoryData(klines) {
+  processHistoryData(klines, detailedCandles, barType) {
     const historyData = [];
     let prevClosePrice = null;
-    let firstOpenPrice = null; // 用于计算相对初始天数的涨跌幅
+    let firstOpenPrice = null;
 
     for (let i = 0; i < klines.length; i++) {
       const k = klines[i];
@@ -636,34 +700,88 @@ class Calculator {
       const highPrice = parseFloat(k[2]);
       const lowPrice = parseFloat(k[3]);
       const closePrice = parseFloat(k[4]);
-      const volume = parseFloat(k[7]); // 修改：使用 volCcyQuote (k[7])
-      const date = new Date(timestamp).toLocaleDateString('zh-CN');
+      const volume = parseFloat(k[7]);
+      const dateObj = new Date(timestamp);
+      const dateStr = dateObj.toLocaleDateString('zh-CN');
+      
+      // 计算当天的开始和结束时间戳
+      const dayStartTs = timestamp;
+      const dayEndTs = dayStartTs + 24 * 60 * 60 * 1000;
 
-      // 记录第一天的开盘价
-      if (i === 0) {
-        firstOpenPrice = openPrice;
+      // 在详细K线中查找匹配的高低点时间
+      let highTimeStr = '-';
+      let lowTimeStr = '-';
+      
+      if (detailedCandles && detailedCandles.length > 0) {
+        // 1. 筛选出属于这一天的详细K线
+        const dayCandles = detailedCandles.filter(dk => {
+          const t = parseInt(dk[0]);
+          return t >= dayStartTs && t < dayEndTs;
+        });
+
+        // 2. 对筛选出的K线按时间正序排序 (OKX返回的是倒序)
+        // 这很重要，确保当价格相同时，我们取到的是当天第一次出现的时间
+        dayCandles.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+
+        if (dayCandles.length > 0) {
+          let maxHigh = -Infinity;
+          let maxHighTs = 0;
+          let minLow = Infinity;
+          let minLowTs = 0;
+
+          dayCandles.forEach(dk => {
+            const h = parseFloat(dk[2]);
+            const l = parseFloat(dk[3]);
+            const t = parseInt(dk[0]);
+            
+            // 找最高价 (因为已排序，相同时保留第一个，所以用 > 而不是 >=)
+            // 修正：其实为了保险，我们初始化为负无穷。
+            if (h > maxHigh) {
+              maxHigh = h;
+              maxHighTs = t;
+            }
+
+            // 找最低价
+            if (l < minLow) {
+              minLow = l;
+              minLowTs = t;
+            }
+          });
+
+          // 格式化时间 HH:mm
+          const formatTime = (ts) => {
+            if (!ts) return '-';
+            const d = new Date(ts);
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+          };
+
+          highTimeStr = formatTime(maxHighTs);
+          lowTimeStr = formatTime(minLowTs);
+        }
       }
 
-      // 计算当日涨跌幅
+      if (i === 0) firstOpenPrice = openPrice;
+
       let dailyChange = 0;
       if (i === 0) {
-        // 第一天：相对开盘价的涨跌幅
         dailyChange = ((closePrice - openPrice) / openPrice) * 100;
       } else {
-        // 其他天：相对前一天收盘价的涨跌幅
         dailyChange = ((closePrice - prevClosePrice) / prevClosePrice) * 100;
       }
 
-      // 计算相对初始天数的涨跌幅
       const cumulativeChange = ((closePrice - firstOpenPrice) / firstOpenPrice) * 100;
 
       historyData.push({
-        date,
+        date: dateStr,
         openPrice: openPrice.toFixed(this.currentPrecision),
         highPrice: highPrice.toFixed(this.currentPrecision),
+        highTime: highTimeStr, 
         lowPrice: lowPrice.toFixed(this.currentPrecision),
+        lowTime: lowTimeStr,   
         closePrice: closePrice.toFixed(this.currentPrecision),
-        volume: this.formatVolume(volume), // 格式化交易量
+        volume: this.formatVolume(volume),
         dailyChange: dailyChange.toFixed(2),
         cumulativeChange: cumulativeChange.toFixed(2)
       });
@@ -675,18 +793,14 @@ class Calculator {
   }
 
   displayHistoryResults(historyData) {
-    console.log('开始显示历史结果, 数据长度:', historyData.length); // 调试信息
+    console.log('开始显示历史结果, 数据长度:', historyData.length);
     
-    if (!historyData.length) {
-      console.log('没有历史数据，返回');
-      return;
-    }
+    if (!historyData.length) return;
 
     const firstOpen = parseFloat(historyData[0].openPrice);
     const lastClose = parseFloat(historyData[historyData.length - 1].closePrice);
     const totalChange = ((lastClose - firstOpen) / firstOpen) * 100;
 
-    // 计算统计数据
     const changes = historyData.map(d => parseFloat(d.dailyChange));
     const positiveCount = changes.filter(c => c > 0).length;
     const negativeCount = changes.filter(c => c < 0).length;
@@ -734,7 +848,7 @@ class Calculator {
     `;
     summaryEl.style.display = 'block';
 
-    // 准备 DataTables 数据 - 添加交易量列
+    // 准备 DataTables 数据 - 增加时间列
     const tableData = historyData.map(data => {
       const dailyChangeClass = parseFloat(data.dailyChange) >= 0 ? 'positive' : 'negative';
       const dailyChangePrefix = parseFloat(data.dailyChange) >= 0 ? '+' : '';
@@ -746,62 +860,54 @@ class Calculator {
         data.date,
         data.openPrice,
         data.highPrice,
+        data.highTime, // 新增
         data.lowPrice,
+        data.lowTime,  // 新增
         data.closePrice,
-        data.volume, // 交易量
+        data.volume,
         `<span class="${dailyChangeClass}">${dailyChangePrefix}${data.dailyChange}%</span>`,
         `<span class="${cumulativeChangeClass}">${cumulativeChangePrefix}${data.cumulativeChange}%</span>`
       ];
     });
 
-    console.log('表格数据准备完成，行数:', tableData.length); // 调试信息
-
-    // 销毁现有的 DataTable 实例
     if (this.historyTable) {
-      console.log('销毁现有DataTable');
       this.historyTable.destroy();
       this.historyTable = null;
     }
 
-    // 确保表格和容器都是可见的
     const historyResults = document.getElementById('historyResults');
     const historyTable = document.getElementById('historyTable');
     
-    console.log('设置容器和表格可见');
     historyResults.style.display = 'block';
-    historyTable.style.display = 'table'; // 修复：显示表格
+    historyTable.style.display = 'table';
 
     try {
-      console.log('开始初始化DataTable');
-      // 创建新的 DataTable
       this.historyTable = $('#historyTable').DataTable({
         data: tableData,
         paging: false,
         searching: false,
         info: false,
         ordering: false,
-        scrollY: window.innerWidth >= 1024 ? '500px' : (window.innerWidth >= 768 ? '400px' : '350px'),
-        scrollX: true, // 启用水平滚动以适应更多列
+        scrollY: window.innerWidth >= 1024 ? '500px' : '400px',
+        scrollX: true,
         scrollCollapse: true,
         responsive: false,
         columnDefs: [
-          { targets: '_all', className: 'text-center' }
+          { targets: '_all', className: 'text-center' },
+          { targets: [3, 5], className: 'text-center text-muted', width: '8%' } // 设置时间列样式
         ],
         language: {
           emptyTable: '暂无数据'
         }
       });
-      console.log('DataTable初始化完成');
     } catch (err) {
       console.error('DataTable初始化失败:', err);
-      // 如果DataTable初始化失败，回退到普通表格显示
       this.fallbackTableDisplay(historyData);
     }
   }
 
-  // 回退表格显示方法（当DataTables失败时使用）
+  // 回退表格显示方法
   fallbackTableDisplay(historyData) {
-    console.log('使用回退表格显示方法');
     const historyResults = document.getElementById('historyResults');
     
     let tableHTML = `
@@ -813,7 +919,9 @@ class Calculator {
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">日期</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">开盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最高</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最高时间</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低时间</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">收盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">交易量</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">当日涨跌幅</th>
@@ -835,7 +943,9 @@ class Calculator {
           <td style="padding: 8px 6px; text-align: center;">${data.date}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.highPrice}</td>
+          <td style="padding: 8px 6px; text-align: center; color: #666;">${data.highTime}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.lowPrice}</td>
+          <td style="padding: 8px 6px; text-align: center; color: #666;">${data.lowTime}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.closePrice}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.volume}</td>
           <td style="padding: 8px 6px; text-align: center;"><span class="${dailyChangeClass}">${dailyChangePrefix}${data.dailyChange}%</span></td>

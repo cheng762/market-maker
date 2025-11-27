@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
   <title>涨跌幅计算器</title>
   <link rel="stylesheet" href="style.css">
-  <!-- 引入 DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 </head>
@@ -21,14 +20,12 @@
       </button>
     </div>
     
-    <!-- 顶部信息栏：币种 + 实时价格 + 持仓信息 -->
     <div class="top-info-bar">
       <div class="symbol-input-wrapper">
         <label for="symbol">币种</label>
         <input type="text" id="symbol" value="BTC-USDT" placeholder="如: BTC-USDT"/>
       </div>
       
-      <!-- 价格信息 -->
       <div id="priceInfo" style="display:none;" class="price-info-inline">
         <div class="price-item"><span>开盘:</span><strong id="openPrice">-</strong></div>
         <div class="price-item"><span>当前:</span><strong id="currentPrice">-</strong></div>
@@ -38,7 +35,6 @@
         <div class="price-item"><span>费率:</span><strong id="fundingRate">-</strong></div>
       </div>
       
-      <!-- 持仓信息 -->
       <div id="positionInfo" style="display:none;" class="position-info-inline">
         <div class="position-item"><span>方向:</span><strong id="positionSide">-</strong></div>
         <div class="position-item"><span>数量:</span><strong id="positionSize">-</strong></div>
@@ -48,20 +44,16 @@
         <div class="position-item"><span>杠杆:</span><strong id="leverage">-</strong></div>
       </div>
       
-      <!-- 消息提示 -->
       <div id="message" style="display:none;"></div>
     </div>
     
     <div class="content">
-      <!-- 上半部分：基础设置 + 持仓计算 -->
       <div class="top-section">
-        <!-- 左侧：基础设置 -->
         <div class="basic-settings">
           <div class="section">
           </div>
         </div>
 
-        <!-- 右侧：持仓计算 -->
         <div class="position-calculation">
           <div class="section">
             <h3>持仓计算</h3>
@@ -86,13 +78,11 @@
               <input type="number" id="dailyExpectPercent" step="0.01" placeholder="如: 2.50 或 -1.00"/>
             </div>
 
-            <!-- 计算结果 -->
             <div id="results" style="display:none;"></div>
           </div>
         </div>
       </div>
 
-      <!-- 下半部分：历史数据分析（独立滚动区域） -->
       <div class="bottom-section">
         <div class="history-analysis">
           <div class="section">
@@ -101,7 +91,7 @@
               <div class="history-controls">
                 <label for="historyDays">查询天数</label>
                 <select id="historyDays">
-                  <option value="7">最近7天</option>
+                  <option value="7">最近7天 (高精度)</option>
                   <option value="14">最近14天</option>
                   <option value="30">最近30天</option>
                   <option value="60">最近60天</option>
@@ -110,13 +100,10 @@
               </div>
             </div>
 
-            <!-- 历史数据汇总 -->
             <div id="historySummary" style="display:none;"></div>
 
-            <!-- 历史数据详情 - 修复初始显示问题 -->
             <div id="historyResults" style="display:none;">
               <div class="history-results">
-                <!-- 移除初始表格结构，由 DataTables 动态创建 -->
                 <div id="historyTableContainer">
                   <table id="historyTable" class="display compact" style="width:100%; display:none;">
                     <thead>
@@ -124,7 +111,9 @@
                         <th>日期</th>
                         <th>开盘</th>
                         <th>最高</th>
+                        <th>最高价时间</th>
                         <th>最低</th>
+                        <th>最低价时间</th>
                         <th>收盘</th>
                         <th>交易量</th>
                         <th>当日涨跌幅</th>
@@ -143,7 +132,6 @@
     </div>
   </div>
 
-  <!-- API配置弹窗 -->
   <div id="apiModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -168,10 +156,8 @@
     </div>
   </div>
 
-  <!-- 引入 jQuery 和 DataTables JS -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-  <!-- 引入 CryptoJS 用于API签名 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <script src="script.js"></script>
 </body>
