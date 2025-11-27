@@ -27,7 +27,7 @@ class Calculator {
     this.loadCachedSymbol(); // 加载缓存的币种
     this.updateApiConfigUI(); // 更新API配置UI状态
     this.fetchPriceData(); // 页面加载时自动获取价格数据
-    
+
     // 如果已配置API，自动获取持仓信息
     if (this.apiConfig) {
       setTimeout(() => {
@@ -74,21 +74,21 @@ class Calculator {
     // 币种输入自动获取（防抖）
     document.getElementById('symbol').addEventListener('input', (e) => {
       const symbol = e.target.value.trim();
-      
+
       // 保存币种到缓存
       this.saveSymbolCache(symbol);
-      
+
       // 清除之前的定时器
       if (this.symbolInputTimeout) {
         clearTimeout(this.symbolInputTimeout);
       }
-      
+
       // 如果输入为空，清除数据
       if (!symbol) {
         this.clearAllData();
         return;
       }
-      
+
       // 设置新的定时器，1秒后执行
       this.symbolInputTimeout = setTimeout(() => {
         this.fetchPriceData();
@@ -162,13 +162,13 @@ class Calculator {
     document.getElementById('historyResults').style.display = 'none';
     document.getElementById('results').style.display = 'none';
     this.hideMessage();
-    
+
     // 清理 DataTables
     if (this.historyTable) {
       this.historyTable.destroy();
       this.historyTable = null;
     }
-    
+
     // 清理定时器
     if (this.tickerInterval) {
       clearInterval(this.tickerInterval);
@@ -241,13 +241,13 @@ class Calculator {
     const config = { apiKey, apiSecret, apiPassphrase };
     localStorage.setItem('okx_api_config', JSON.stringify(config));
     this.apiConfig = config;
-    
+
     this.showMessage('API配置保存成功', 'success');
     setTimeout(() => this.hideMessage(), 2000);
-    
+
     // 关闭弹窗
     this.closeModal();
-    
+
     // 保存后立即获取持仓数据
     this.fetchPositionData();
   }
@@ -284,7 +284,7 @@ class Calculator {
       const timestamp = new Date().toISOString();
       const method = 'GET';
       const requestPath = `/api/v5/account/positions?instType=SWAP&instId=${instId}`;
-      
+
       const signature = this.generateSignature(timestamp, method, requestPath);
 
       const headers = {
@@ -327,7 +327,7 @@ class Calculator {
   // 更新持仓信息显示
   updatePositionDisplay() {
     const positionInfo = document.getElementById('positionInfo');
-    
+
     if (!this.positionData) {
       if (positionInfo) {
         positionInfo.style.display = 'none';
@@ -336,10 +336,10 @@ class Calculator {
     }
 
     const pos = this.positionData;
-    
+
     // 确保精度值有效
     const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
-    
+
     // 持仓方向
     const posSide = pos.posSide === 'long' ? '做多' : (pos.posSide === 'short' ? '做空' : pos.posSide);
     const positionSideEl = document.getElementById('positionSide');
@@ -354,20 +354,20 @@ class Calculator {
         positionSideEl.className = 'neutral'; // 添加默认情况处理
       }
     }
-    
+
     // 持仓数量
     const positionSizeEl = document.getElementById('positionSize');
     if (positionSizeEl) {
       positionSizeEl.textContent = parseFloat(pos.margin).toFixed(4);
     }
-    
+
     // 持仓均价
     const avgPx = parseFloat(pos.avgPx);
     const positionAvgPriceEl = document.getElementById('positionAvgPrice');
     if (positionAvgPriceEl && isFinite(avgPx)) {
       positionAvgPriceEl.textContent = avgPx.toFixed(precision);
     }
-    
+
     // 爆仓价格
     const liqPx = parseFloat(pos.liqPx);
     const liquidationPriceEl = document.getElementById('liquidationPrice');
@@ -378,7 +378,7 @@ class Calculator {
         liquidationPriceEl.textContent = 'N/A';
       }
     }
-    
+
     // 未实现盈亏
     const upl = parseFloat(pos.upl);
     const uplEl = document.getElementById('unrealizedPnl');
@@ -386,13 +386,13 @@ class Calculator {
       uplEl.textContent = `${upl >= 0 ? '+' : ''}${upl.toFixed(2)}`;
       uplEl.className = upl >= 0 ? 'positive' : 'negative';
     }
-    
+
     // 杠杆倍数
     const leverageEl = document.getElementById('leverage');
     if (leverageEl) {
       leverageEl.textContent = `${pos.lever}x`;
     }
-    
+
     if (positionInfo) {
       positionInfo.style.display = 'flex';
     }
@@ -408,7 +408,7 @@ class Calculator {
 
     const avgPx = parseFloat(this.positionData.avgPx);
     const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
-    
+
     if (avgPx > 0 && isFinite(avgPx)) {
       document.getElementById('holdPrice').value = avgPx.toFixed(precision);
       this.calculate();
@@ -423,7 +423,7 @@ class Calculator {
   // 检测价格的小数位数
   detectPricePrecision(prices) {
     let maxDecimalPlaces = 2; // 默认最少2位小数
-    
+
     prices.forEach(price => {
       if (price && isFinite(price)) {
         const priceStr = price.toString();
@@ -433,7 +433,7 @@ class Calculator {
         }
       }
     });
-    
+
     // 限制在2-8位小数之间
     return Math.min(Math.max(maxDecimalPlaces, 2), 8);
   }
@@ -441,7 +441,7 @@ class Calculator {
   // 自动设置价格精度
   autoSetPrecision(prices) {
     const detectedPrecision = this.detectPricePrecision(prices);
-    
+
     // 只在精度确实需要改变时才更新
     if (this.currentPrecision !== detectedPrecision) {
       this.currentPrecision = detectedPrecision;
@@ -454,7 +454,7 @@ class Calculator {
     const stepStr = (1 / Math.pow(10, this.currentPrecision)).toFixed(this.currentPrecision);
     const targetPriceEl = document.getElementById('targetPrice');
     const holdPriceEl = document.getElementById('holdPrice');
-    
+
     targetPriceEl.step = stepStr;
     holdPriceEl.step = stepStr;
   }
@@ -529,7 +529,7 @@ class Calculator {
       const k = klineData.data[0];
       const openPrice = parseFloat(k[1]); // 开盘
       const highPrice = parseFloat(k[2]); // 当日高
-      const lowPrice  = parseFloat(k[3]); // 当日低
+      const lowPrice = parseFloat(k[3]); // 当日低
       const currentPrice = parseFloat(tickerData.data[0].last);
 
       this.currentData = { openPrice, highPrice, lowPrice, currentPrice, symbol };
@@ -571,20 +571,20 @@ class Calculator {
     // 策略：天数少时用5m精度高，天数多时用1H避免请求过多
     let bar = '1H';
     if (days <= 7) {
-      bar = '5m';
+      bar = '15m';
     }
-    
+
     this.showMessage(`正在获取详细时间数据 (粒度: ${bar})...`, 'loading');
 
     // 修正逻辑：我们要获取直到 dailyKlines 中 *最旧* 的日期为止
     // dailyKlines 是按时间正序排列的 (index 0 是最旧的)
     const oldestTimestamp = parseInt(dailyKlines[0][0]);
-    
+
     const allDetailedCandles = [];
     let currentCursor = ''; // 分页游标 (请求比该ID更旧的数据)
-    
-    // 增加最大请求限制，防止死循环，同时增加到60次以确保覆盖
-    const MAX_REQUESTS = 60; 
+
+    // 增加最大请求限制，防止死循环，同时增加到100次以确保覆盖
+    const MAX_REQUESTS = 100;
     let requestCount = 0;
 
     try {
@@ -603,14 +603,14 @@ class Calculator {
 
         const candles = data.data;
         allDetailedCandles.push(...candles);
-        
+
         // OKX返回的数据是按时间倒序的（最新的在前）
         // cursor 设置为本页最后一条（最旧一条）的时间戳
         currentCursor = candles[candles.length - 1][0];
-        
+
         // 修正：如果获取到的数据的最旧时间 已经小于 我们需要的起始时间，说明已经覆盖到了
-        // 注意 OKX 返回的是 K线的开始时间
-        if (parseInt(currentCursor) < oldestTimestamp) {
+        // 增加一个缓冲时间 (24小时)，确保覆盖边界
+        if (parseInt(currentCursor) < oldestTimestamp - 86400000) {
           break;
         }
 
@@ -620,7 +620,7 @@ class Calculator {
       }
 
       console.log(`获取到 ${allDetailedCandles.length} 条详细K线数据`);
-      
+
       return { detailedCandles: allDetailedCandles, bar: bar };
 
     } catch (err) {
@@ -632,7 +632,7 @@ class Calculator {
   async fetchHistoryData() {
     const symbol = document.getElementById('symbol').value.trim();
     const days = parseInt(document.getElementById('historyDays').value);
-    
+
     if (!symbol) {
       this.showMessage('请输入币种', 'error');
       return;
@@ -658,23 +658,23 @@ class Calculator {
       // 数据是按时间倒序的，需要反转为正序，并只取需要的天数
       // 注意：API返回的数据可能比limit多或者正好，这里截取
       const klines = data.data.slice(0, days).reverse();
-      
+
       // 2. 获取详细数据以匹配时间
       const { detailedCandles, bar } = await this.fetchDetailedHistoryAndMatch(symbol, days, klines);
-      
+
       // 收集所有价格用于精度检测
       const allPrices = [];
       klines.forEach(k => {
         allPrices.push(parseFloat(k[1]), parseFloat(k[2]), parseFloat(k[3]), parseFloat(k[4]));
       });
-      
+
       if (!this.currentData.currentPrice) {
         this.autoSetPrecision(allPrices);
       }
-      
+
       const historyData = this.processHistoryData(klines, detailedCandles, bar);
       console.log('处理后的历史数据:', historyData);
-      
+
       this.displayHistoryResults(historyData);
       this.showMessage(`历史数据获取成功 (${historyData.length}天)`, 'success');
 
@@ -703,7 +703,7 @@ class Calculator {
       const volume = parseFloat(k[7]);
       const dateObj = new Date(timestamp);
       const dateStr = dateObj.toLocaleDateString('zh-CN');
-      
+
       // 计算当天的开始和结束时间戳
       const dayStartTs = timestamp;
       const dayEndTs = dayStartTs + 24 * 60 * 60 * 1000;
@@ -711,7 +711,7 @@ class Calculator {
       // 在详细K线中查找匹配的高低点时间
       let highTimeStr = '-';
       let lowTimeStr = '-';
-      
+
       if (detailedCandles && detailedCandles.length > 0) {
         // 1. 筛选出属于这一天的详细K线
         const dayCandles = detailedCandles.filter(dk => {
@@ -733,7 +733,7 @@ class Calculator {
             const h = parseFloat(dk[2]);
             const l = parseFloat(dk[3]);
             const t = parseInt(dk[0]);
-            
+
             // 找最高价 (因为已排序，相同时保留第一个，所以用 > 而不是 >=)
             // 修正：其实为了保险，我们初始化为负无穷。
             if (h > maxHigh) {
@@ -771,19 +771,33 @@ class Calculator {
         dailyChange = ((closePrice - prevClosePrice) / prevClosePrice) * 100;
       }
 
+      // 计算最高/最低价相对开盘价的涨跌幅
+      const highChangePercent = ((highPrice - openPrice) / openPrice) * 100;
+      const lowChangePercent = ((lowPrice - openPrice) / openPrice) * 100;
+
+      // 计算振幅: (最高-最低) / 昨收 (第一天用开盘)
+      let amplitude = 0;
+      const basePrice = (i === 0) ? openPrice : prevClosePrice;
+      if (basePrice > 0) {
+        amplitude = ((highPrice - lowPrice) / basePrice) * 100;
+      }
+
       const cumulativeChange = ((closePrice - firstOpenPrice) / firstOpenPrice) * 100;
 
       historyData.push({
         date: dateStr,
         openPrice: openPrice.toFixed(this.currentPrecision),
         highPrice: highPrice.toFixed(this.currentPrecision),
-        highTime: highTimeStr, 
+        highTime: highTimeStr,
         lowPrice: lowPrice.toFixed(this.currentPrecision),
-        lowTime: lowTimeStr,   
+        lowTime: lowTimeStr,
         closePrice: closePrice.toFixed(this.currentPrecision),
         volume: this.formatVolume(volume),
         dailyChange: dailyChange.toFixed(2),
-        cumulativeChange: cumulativeChange.toFixed(2)
+        cumulativeChange: cumulativeChange.toFixed(2),
+        highChangePercent: highChangePercent.toFixed(2),
+        lowChangePercent: lowChangePercent.toFixed(2),
+        amplitude: amplitude.toFixed(2)
       });
 
       prevClosePrice = closePrice;
@@ -794,7 +808,7 @@ class Calculator {
 
   displayHistoryResults(historyData) {
     console.log('开始显示历史结果, 数据长度:', historyData.length);
-    
+
     if (!historyData.length) return;
 
     const firstOpen = parseFloat(historyData[0].openPrice);
@@ -852,20 +866,26 @@ class Calculator {
     const tableData = historyData.map(data => {
       const dailyChangeClass = parseFloat(data.dailyChange) >= 0 ? 'positive' : 'negative';
       const dailyChangePrefix = parseFloat(data.dailyChange) >= 0 ? '+' : '';
-      
+
       const cumulativeChangeClass = parseFloat(data.cumulativeChange) >= 0 ? 'positive' : 'negative';
       const cumulativeChangePrefix = parseFloat(data.cumulativeChange) >= 0 ? '+' : '';
-      
+
+      const highChangeClass = parseFloat(data.highChangePercent) >= 0 ? 'positive' : 'negative';
+      const highChangePrefix = parseFloat(data.highChangePercent) >= 0 ? '+' : '';
+
+      const lowChangeClass = parseFloat(data.lowChangePercent) >= 0 ? 'positive' : 'negative';
+      const lowChangePrefix = parseFloat(data.lowChangePercent) >= 0 ? '+' : '';
+
       return [
         data.date,
         data.openPrice,
-        data.highPrice,
-        data.highTime, // 新增
-        data.lowPrice,
-        data.lowTime,  // 新增
-        data.closePrice,
+        `${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${highChangePrefix}${data.highChangePercent}%)</span>`,
+        data.highTime,
+        `${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${lowChangePrefix}${data.lowChangePercent}%)</span>`,
+        data.lowTime,
+        `${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>`,
         data.volume,
-        `<span class="${dailyChangeClass}">${dailyChangePrefix}${data.dailyChange}%</span>`,
+        `${data.amplitude}%`,
         `<span class="${cumulativeChangeClass}">${cumulativeChangePrefix}${data.cumulativeChange}%</span>`
       ];
     });
@@ -877,7 +897,7 @@ class Calculator {
 
     const historyResults = document.getElementById('historyResults');
     const historyTable = document.getElementById('historyTable');
-    
+
     historyResults.style.display = 'block';
     historyTable.style.display = 'table';
 
@@ -909,7 +929,7 @@ class Calculator {
   // 回退表格显示方法
   fallbackTableDisplay(historyData) {
     const historyResults = document.getElementById('historyResults');
-    
+
     let tableHTML = `
       <div class="history-results">
         <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e1e5e9; border-radius: 6px;">
@@ -924,7 +944,7 @@ class Calculator {
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低时间</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">收盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">交易量</th>
-                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">当日涨跌幅</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">振幅</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">累计涨跌幅</th>
               </tr>
             </thead>
@@ -934,7 +954,7 @@ class Calculator {
     historyData.forEach(data => {
       const dailyChangeClass = parseFloat(data.dailyChange) >= 0 ? 'positive' : 'negative';
       const dailyChangePrefix = parseFloat(data.dailyChange) >= 0 ? '+' : '';
-      
+
       const cumulativeChangeClass = parseFloat(data.cumulativeChange) >= 0 ? 'positive' : 'negative';
       const cumulativeChangePrefix = parseFloat(data.cumulativeChange) >= 0 ? '+' : '';
 
@@ -942,13 +962,20 @@ class Calculator {
         <tr style="border-bottom: 1px solid #e1e5e9;">
           <td style="padding: 8px 6px; text-align: center;">${data.date}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
-          <td style="padding: 8px 6px; text-align: center;">${data.highPrice}</td>
+          <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
+          <td style="padding: 8px 6px; text-align: center;">
+            ${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${highChangePrefix}${data.highChangePercent}%)</span>
+          </td>
           <td style="padding: 8px 6px; text-align: center; color: #666;">${data.highTime}</td>
-          <td style="padding: 8px 6px; text-align: center;">${data.lowPrice}</td>
+          <td style="padding: 8px 6px; text-align: center;">
+            ${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${lowChangePrefix}${data.lowChangePercent}%)</span>
+          </td>
           <td style="padding: 8px 6px; text-align: center; color: #666;">${data.lowTime}</td>
-          <td style="padding: 8px 6px; text-align: center;">${data.closePrice}</td>
+          <td style="padding: 8px 6px; text-align: center;">
+            ${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>
+          </td>
           <td style="padding: 8px 6px; text-align: center;">${data.volume}</td>
-          <td style="padding: 8px 6px; text-align: center;"><span class="${dailyChangeClass}">${dailyChangePrefix}${data.dailyChange}%</span></td>
+          <td style="padding: 8px 6px; text-align: center;">${data.amplitude}%</td>
           <td style="padding: 8px 6px; text-align: center;"><span class="${cumulativeChangeClass}">${cumulativeChangePrefix}${data.cumulativeChange}%</span></td>
         </tr>
       `;
@@ -971,9 +998,9 @@ class Calculator {
     if (this.tickerInterval) clearInterval(this.tickerInterval);
     if (this.fundingRateInterval) clearInterval(this.fundingRateInterval);
     if (this.positionInterval) clearInterval(this.positionInterval);
-    
+
     const symbol = this.currentData.symbol;
-    
+
     // 每 10 秒更新价格
     this.tickerInterval = setInterval(async () => {
       try {
@@ -1024,7 +1051,7 @@ class Calculator {
 
       // 确保精度值有效
       const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
-      
+
       document.getElementById('openPrice').textContent = openPrice.toFixed(precision);
       document.getElementById('currentPrice').textContent = currentPrice.toFixed(precision);
 
@@ -1105,7 +1132,7 @@ class Calculator {
   calculate() {
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const { openPrice, currentPrice } = this.currentData;
-    
+
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');
       document.getElementById('results').style.display = 'none';
@@ -1213,9 +1240,9 @@ class Calculator {
     messageEl.className = `message ${type}`;
     messageEl.style.display = 'block';
   }
-  
-  hideMessage() { 
-    document.getElementById('message').style.display = 'none'; 
+
+  hideMessage() {
+    document.getElementById('message').style.display = 'none';
   }
 }
 

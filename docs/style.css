@@ -1,33 +1,33 @@
 /* 重置样式 */
-* { 
-  margin: 0; 
-  padding: 0; 
-  box-sizing: border-box; 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* 基础样式 */
-body { 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-  background: #f3f4f6; 
-  min-height: 100vh; 
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f3f4f6;
+  min-height: 100vh;
   padding: 20px;
   line-height: 1.5;
 }
 
 /* 主容器 */
-.calculator { 
+.calculator {
   max-width: none;
-  margin: 0 auto; 
-  background: #fff; 
-  border-radius: 12px; 
-  box-shadow: 0 8px 32px rgba(0,0,0,.08); 
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .08);
   overflow: hidden;
 }
 
 /* 头部 */
 .header {
-  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  color:#fff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
   padding: 20px;
   display: flex;
   justify-content: space-between;
@@ -207,22 +207,22 @@ body {
 }
 
 /* 区块样式 */
-.section { 
-  margin-bottom: 24px; 
+.section {
+  margin-bottom: 24px;
 }
 
-.section h3 { 
-  color:#333; 
-  margin-bottom: 16px; 
-  font-size:18px; 
-  font-weight:600; 
+.section h3 {
+  color: #333;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.section h4 { 
-  color:#333; 
-  margin-bottom: 12px; 
-  font-size:16px; 
-  font-weight:600; 
+.section h4 {
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 /* 输入框带按钮 */
@@ -255,53 +255,56 @@ body {
 }
 
 /* 表单样式 */
-.form-group { 
-  margin-bottom: 16px; 
+.form-group {
+  margin-bottom: 16px;
 }
 
-.form-group label { 
-  display:block; 
-  margin-bottom: 8px; 
-  color:#555; 
-  font-weight:500; 
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
   font-size: 14px;
 }
 
 /* 输入控件 */
-input, select, button { 
-  width:100%; 
-  padding: 12px; 
-  border:2px solid #e1e5e9; 
-  border-radius:8px; 
-  font-size:16px; 
-  transition:border-color .2s;
+input,
+select,
+button {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color .2s;
   -webkit-appearance: none;
   appearance: none;
 }
 
-input:focus, select:focus { 
-  outline:none; 
-  border-color:#667eea; 
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
-button { 
-  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); 
-  color:#fff; 
-  border:none; 
-  cursor:pointer; 
-  font-weight:500; 
-  transition:transform .2s;
+button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform .2s;
   min-height: 48px;
 }
 
-button:hover { 
-  transform: translateY(-1px); 
+button:hover {
+  transform: translateY(-1px);
 }
 
-button:disabled { 
-  background:#ccc; 
-  cursor:not-allowed; 
-  transform:none; 
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
 }
 
 button:active {
@@ -338,8 +341,13 @@ button:active {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
@@ -358,6 +366,7 @@ button:active {
     transform: translateY(-50px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -414,22 +423,22 @@ button:active {
 
 /* 价格信息 */
 .price-info {
-  background:#f8f9fa;
-  padding:16px;
-  border-radius:8px;
-  margin-top:16px;
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: 16px;
 }
 
 
-.price-grid { 
-  display:grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap:12px; 
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
-.price-item { 
-  display:flex; 
-  justify-content:space-between; 
+.price-item {
+  display: flex;
+  justify-content: space-between;
   padding: 8px 0;
 }
 
@@ -438,55 +447,56 @@ button:active {
   color: #666;
 }
 
-.price-item strong { 
-  color:#333; 
+.price-item strong {
+  color: #333;
   font-size: 13px;
 }
 
 /* 颜色样式 */
-.positive { 
-  color:#22c55e !important; 
-  font-weight:600; 
+.positive {
+  color: #22c55e !important;
+  font-weight: 600;
 }
 
-.negative { 
-  color:#ef4444 !important; 
-  font-weight:600; 
+.negative {
+  color: #ef4444 !important;
+  font-weight: 600;
 }
 
-.neutral { 
-  color:#6b7280 !important; 
-  font-weight:600; 
+.neutral {
+  color: #6b7280 !important;
+  font-weight: 600;
 }
 
 /* 结果表格 */
-.results { 
-  background:#f8f9fa; 
-  border-radius:8px; 
-  overflow:hidden; 
-  margin-top: 16px; 
+.results {
+  background: #f8f9fa;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 16px;
 }
 
-.results table { 
-  width:100%; 
-  border-collapse: collapse; 
+.results table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.results th, .results td { 
-  padding: 12px; 
-  text-align:left; 
-  border-bottom:1px solid #e1e5e9; 
+.results th,
+.results td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e1e5e9;
   font-size: 14px;
 }
 
-.results th { 
-  background:#e5e7eb; 
-  font-weight:600; 
-  color:#374151; 
+.results th {
+  background: #e5e7eb;
+  font-weight: 600;
+  color: #374151;
 }
 
-.results tr:last-child td { 
-  border-bottom:none; 
+.results tr:last-child td {
+  border-bottom: none;
 }
 
 /* 历史数据分析区域 */
@@ -518,11 +528,11 @@ button:active {
 }
 
 /* 历史数据样式 */
-.history-results { 
-  background:#f8f9fa; 
-  border-radius:8px; 
+.history-results {
+  background: #f8f9fa;
+  border-radius: 8px;
   padding: 16px;
-  margin-top: 16px; 
+  margin-top: 16px;
 }
 
 /* DataTables 自定义样式 */
@@ -565,49 +575,89 @@ button:active {
 
 /* 表格列宽设置 - 调整为10列 */
 #historyTable th:nth-child(1),
-#historyTable td:nth-child(1) { width: 10%; } /* 日期 */
+#historyTable td:nth-child(1) {
+  width: 10%;
+}
+
+/* 日期 */
 #historyTable th:nth-child(2),
-#historyTable td:nth-child(2) { width: 10%; } /* 开盘 */
+#historyTable td:nth-child(2) {
+  width: 10%;
+}
+
+/* 开盘 */
 #historyTable th:nth-child(3),
-#historyTable td:nth-child(3) { width: 10%; } /* 最高 */
+#historyTable td:nth-child(3) {
+  width: 13%;
+}
+
+/* 最高 */
 #historyTable th:nth-child(4),
-#historyTable td:nth-child(4) { width: 8%; }  /* 最高时间 */
+#historyTable td:nth-child(4) {
+  width: 7%;
+}
+
+/* 最高时间 */
 #historyTable th:nth-child(5),
-#historyTable td:nth-child(5) { width: 10%; } /* 最低 */
+#historyTable td:nth-child(5) {
+  width: 13%;
+}
+
+/* 最低 */
 #historyTable th:nth-child(6),
-#historyTable td:nth-child(6) { width: 8%; }  /* 最低时间 */
+#historyTable td:nth-child(6) {
+  width: 7%;
+}
+
+/* 最低时间 */
 #historyTable th:nth-child(7),
-#historyTable td:nth-child(7) { width: 10%; } /* 收盘 */
+#historyTable td:nth-child(7) {
+  width: 13%;
+}
+
+/* 收盘 */
 #historyTable th:nth-child(8),
-#historyTable td:nth-child(8) { width: 12%; } /* 交易量 */
+#historyTable td:nth-child(8) {
+  width: 10%;
+}
+
+/* 交易量 */
 #historyTable th:nth-child(9),
-#historyTable td:nth-child(9) { width: 10%; } /* 当日涨跌幅 */
+#historyTable td:nth-child(9) {
+  width: 7%;
+}
+
+/* 振幅 */
 #historyTable th:nth-child(10),
-#historyTable td:nth-child(10) { width: 12%; } /* 累计涨跌幅 */
+#historyTable td:nth-child(10) {
+  width: 10%;
+}
+
+/* 累计涨跌幅 */
 
 /* 汇总信息 */
-.summary-info { 
-  background:#e0f2fe; 
-  padding:16px; 
-  border-radius:8px; 
-  margin-bottom:16px; 
+.summary-info {
+  background: #e0f2fe;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
 .summary-info h4 {
-  margin-bottom: 12px; 
+  margin-bottom: 12px;
   color: #374151;
   font-size: 16px;
 }
 
-.summary-info .summary-grid { 
-  display:grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap:10px; 
+.summary-info .summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
-.summary-info .summary-item { 
-  display:flex; 
-  justify-content:space-between; 
+.summary-info .summary-item {
+  display: flex;
+  justify-content: space-between;
   font-size: 14px;
   padding: 4px 0;
 }
@@ -625,6 +675,7 @@ button:active {
 
 .bottom-section {
   /* 历史数据分析区域 */
+  margin-top: 20px;
 }
 
 /* 平板端布局 */
@@ -632,29 +683,29 @@ button:active {
   .content {
     padding: 25px;
   }
-  
+
   .top-section {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 30px;
     margin-bottom: 40px;
   }
-  
+
   .basic-settings,
   .position-calculation {
     margin-bottom: 0;
   }
-  
+
   .price-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
-  
+
   .summary-info .summary-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
-  
+
   .history-controls select {
     min-width: 140px;
   }
@@ -670,24 +721,24 @@ button:active {
   body {
     padding: 20px;
   }
-  
+
   .calculator {
     /* 移除固定高度，让内容自然撑开 */
     max-width: none;
   }
-  
+
   .header {
     padding: 20px 40px;
   }
-  
+
   .header h1 {
     font-size: 28px;
   }
-  
+
   .content {
     padding: 30px 40px 40px;
   }
-  
+
   /* 上半部分：基础设置 + 持仓计算 */
   .top-section {
     display: grid;
@@ -695,104 +746,109 @@ button:active {
     gap: 50px;
     margin-bottom: 40px;
   }
-  
+
   /* 下半部分：历史数据分析 */
   .bottom-section {
     /* 自然高度，不强制flex布局 */
+    margin-top: 0;
   }
-  
+
   .history-analysis {
     /* 移除flex布局约束 */
+    width: 100%;
   }
-  
+
   .history-analysis .section {
     margin-bottom: 0;
   }
-  
+
   /* 调整区块边距 */
   .basic-settings .section,
   .position-calculation .section {
     margin-bottom: 0;
   }
-  
+
   .section h3 {
     font-size: 20px;
     margin-bottom: 20px;
   }
-  
+
   /* 价格网格优化 - 调整为3列以适应6个项目 */
   .price-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
-  
+
   .price-item span,
   .price-item strong {
     font-size: 12px;
   }
-  
+
   /* 汇总信息网格优化 */
   .summary-info .summary-grid {
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
   }
-  
+
   .summary-info .summary-item {
     font-size: 13px;
     padding: 6px 0;
   }
-  
+
   /* PC端历史数据表格优化 */
   .history-results {
     padding: 20px;
   }
-  
+
   #historyTable {
     font-size: 11px !important;
   }
-  
+
   #historyTable thead th {
     padding: 6px 4px !important;
   }
-  
+
   #historyTable tbody td {
     padding: 5px 3px !important;
   }
-  
+
   /* DataTables 滚动高度设置 - 固定合理高度 */
   .dataTables_scrollBody {
     max-height: 500px !important;
     min-height: 200px !important;
   }
-  
+
   /* 表单元素优化 */
-  input, select, button {
+  input,
+  select,
+  button {
     padding: 12px 16px;
     font-size: 15px;
     min-height: 48px;
   }
-  
+
   .form-group {
     margin-bottom: 18px;
   }
-  
+
   .form-group label {
     font-size: 14px;
     margin-bottom: 8px;
   }
-  
+
   .history-controls select {
     padding: 8px 12px;
     font-size: 14px;
     min-height: 40px;
   }
-  
+
   /* 结果表格优化 */
-  .results th, .results td {
+  .results th,
+  .results td {
     padding: 14px 16px;
     font-size: 14px;
   }
-  
+
 }
 
 /* 超大屏幕优化 (>= 1440px) */
@@ -800,48 +856,51 @@ button:active {
   body {
     padding: 30px;
   }
-  
+
   .content {
     padding: 40px 60px 60px;
   }
-  
+
   .top-section {
     gap: 60px;
     margin-bottom: 50px;
   }
-  
+
   .section h3 {
     font-size: 22px;
     margin-bottom: 24px;
   }
-  
+
   .price-item span,
   .price-item strong {
     font-size: 13px;
   }
-  
+
   .summary-info .summary-item {
     font-size: 14px;
   }
-  
+
   #historyTable {
     font-size: 12px !important;
   }
-  
-  .results th, .results td {
+
+  .results th,
+  .results td {
     font-size: 15px;
     padding: 16px 18px;
   }
-  
-  input, select, button {
+
+  input,
+  select,
+  button {
     font-size: 16px;
     padding: 14px 18px;
   }
-  
+
   .form-group {
     margin-bottom: 20px;
   }
-  
+
   .form-group label {
     font-size: 15px;
   }
@@ -858,199 +917,202 @@ button:active {
   body {
     padding: 10px;
   }
-  
+
   .calculator {
     border-radius: 8px;
   }
-  
+
   .header {
     padding: 16px;
   }
-  
+
   .header h1 {
     font-size: 20px;
-  
-  .settings-btn {
-    width: 36px;
-    height: 36px;
-    min-height: 36px;
+
+    .settings-btn {
+      width: 36px;
+      height: 36px;
+      min-height: 36px;
+    }
+
+    .settings-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* 顶部信息栏移动端优化 */
+    .top-info-bar {
+      padding: 12px 16px;
+      gap: 10px;
+    }
+
+    .symbol-input-wrapper {
+      width: 100%;
+      min-width: auto;
+    }
+
+    .symbol-input-wrapper input {
+      font-size: 16px;
+    }
+
+    .price-info-inline {
+      width: 100%;
+      gap: 10px;
+    }
+
+    .price-info-inline .price-item span {
+      font-size: 12px;
+    }
+
+    .price-info-inline .price-item strong {
+      font-size: 13px;
+    }
+
+    #message {
+      font-size: 13px;
+      padding: 8px 12px;
+    }
+
+    /* 弹窗移动端优化 */
+    .modal-content {
+      width: 95%;
+      margin: 10px;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
   }
 
-  .settings-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* 顶部信息栏移动端优化 */
-  .top-info-bar {
-    padding: 12px 16px;
-    gap: 10px;
-  }
-
-  .symbol-input-wrapper {
-    width: 100%;
-    min-width: auto;
-  }
-
-  .symbol-input-wrapper input {
-    font-size: 16px;
-  }
-
-  .price-info-inline {
-    width: 100%;
-    gap: 10px;
-  }
-
-  .price-info-inline .price-item span {
-    font-size: 12px;
-  }
-
-  .price-info-inline .price-item strong {
-    font-size: 13px;
-  }
-
-  #message {
-    font-size: 13px;
-    padding: 8px 12px;
-  }
-
-  /* 弹窗移动端优化 */
-  .modal-content {
-    width: 95%;
-    margin: 10px;
-  }
-
-  .modal-header {
-    padding: 16px 20px;
-  }
-
-  .modal-header h3 {
-    font-size: 18px;
-  }
-
-  .modal-body {
-    padding: 20px;
-  }
-  }
-  
   .content {
     padding: 16px;
   }
-  
+
   .top-section {
     margin-bottom: 25px;
   }
-  
+
   .basic-settings,
   .position-calculation {
     margin-bottom: 25px;
   }
-  
+
   .section h3 {
     font-size: 16px;
     margin-bottom: 12px;
   }
-  
+
   .form-group {
     margin-bottom: 14px;
   }
-  
+
   .form-group label {
     font-size: 14px;
     margin-bottom: 6px;
   }
-  
-  input, select, button {
+
+  input,
+  select,
+  button {
     padding: 14px;
     font-size: 16px;
     min-height: 48px;
   }
-  
+
   button {
     font-size: 16px;
     font-weight: 600;
   }
-  
+
   .price-grid {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+
   .price-item {
     padding: 8px 0;
     border-bottom: 1px solid #e5e7eb;
   }
-  
+
   .price-item:last-child {
     border-bottom: none;
   }
-  
+
   .price-item span,
   .price-item strong {
     font-size: 14px;
   }
-  
+
   .summary-info .summary-grid {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+
   .summary-info .summary-item {
     padding: 6px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
     font-size: 14px;
   }
-  
+
   .summary-info .summary-item:last-child {
     border-bottom: none;
   }
-  
-  .results th, .results td {
+
+  .results th,
+  .results td {
     padding: 12px 8px;
     font-size: 14px;
   }
-  
+
   /* 移动端历史数据 */
   .history-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .history-controls {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .history-controls select {
     min-width: 0;
     flex: 1;
     max-width: 150px;
   }
-  
+
   .history-results {
     margin-left: -16px;
     margin-right: -16px;
     border-radius: 0;
     padding: 8px;
   }
-  
+
   #historyTable {
     font-size: 10px !important;
   }
-  
+
   #historyTable thead th {
     padding: 6px 3px !important;
   }
-  
+
   #historyTable tbody td {
     padding: 5px 2px !important;
   }
-  
+
   .dataTables_scrollBody {
     max-height: 350px !important;
   }
-  
+
 }
 
 /* iPhone 15 Pro Max 特殊优化 */
@@ -1058,36 +1120,39 @@ button:active {
   .header {
     padding: 20px 16px;
   }
-  
+
   .header h1 {
     font-size: 22px;
   }
-  
-  input, select, button {
+
+  input,
+  select,
+  button {
     padding: 16px;
     font-size: 17px;
     min-height: 52px;
   }
-  
+
   .form-group label {
     font-size: 15px;
     margin-bottom: 8px;
   }
-  
+
   .section h3 {
     font-size: 18px;
   }
-  
+
   .price-item span,
   .price-item strong {
     font-size: 15px;
   }
-  
+
   .summary-info .summary-item {
     font-size: 15px;
   }
-  
-  .results th, .results td {
+
+  .results th,
+  .results td {
     font-size: 15px;
   }
 }
@@ -1097,31 +1162,31 @@ button:active {
   body {
     padding: 8px;
   }
-  
+
   .header {
     padding: 10px;
   }
-  
+
   .header h1 {
     font-size: 18px;
   }
-  
+
   .content {
     padding: 10px;
   }
-  
+
   .top-section {
     margin-bottom: 20px;
   }
-  
+
   .section h3 {
     margin-bottom: 10px;
   }
-  
+
   .form-group {
     margin-bottom: 10px;
   }
-  
+
   .dataTables_scrollBody {
     max-height: 200px !important;
   }
@@ -1132,48 +1197,64 @@ button:active {
   body {
     background: #1f2937;
   }
-  
+
   .calculator {
     background: #374151;
     color: #f9fafb;
   }
-  
-  .section h3, .section h4 {
+
+  .section h3,
+  .section h4 {
     color: #f9fafb;
   }
-  
+
   .form-group label {
     color: #d1d5db;
   }
-  
-  input, select {
+
+  input,
+  select {
     background: #4b5563;
     border-color: #6b7280;
     color: #f9fafb;
   }
-  
+
   .price-info,
   .results,
   .history-results {
     background: #4b5563;
   }
-  
+
   .results th,
   #historyTable thead th {
     background: #6b7280 !important;
     color: #f9fafb !important;
   }
-  
+
   .summary-info {
     background: #1e40af;
   }
-  
+
   #historyTable tbody tr:hover {
     background-color: rgba(139, 156, 235, 0.1) !important;
   }
-  
+
   .dataTables_scrollBody {
     background: #4b5563 !important;
     border-color: #6b7280 !important;
   }
+}
+
+/* 辅助信息样式 */
+.sub-info {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+  font-weight: normal;
+}
+
+.sub-info.inline {
+  display: inline;
+  margin-top: 0;
+  margin-left: 4px;
 }
