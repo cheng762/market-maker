@@ -9,8 +9,8 @@ class Calculator {
     };
     this.lastModified = null; // 'percent' | 'price' | 'daily'
     this.tickerInterval = null;
-    this.fundingRateInterval = null; // 新增：资金费率更新定时器
-    this.positionInterval = null; // 新增：持仓数据更新定时器
+    this.fundingRateInterval = null; // 资金费率更新定时器
+    this.positionInterval = null; // 持仓数据更新定时器
     this.currentPrecision = 2; // 默认精度
     this.symbolInputTimeout = null; // 防抖定时器
     this.isLoadingPrice = false; // 防止重复请求
@@ -26,9 +26,11 @@ class Calculator {
     this.bindEvents();
     this.loadCachedSymbol(); // 加载缓存的币种
     this.updateApiConfigUI(); // 更新API配置UI状态
+    this.updateApiStatusUI(); // 更新API功能按钮状态
+
     this.fetchPriceData(); // 页面加载时自动获取价格数据
 
-    // 如果已配置API，自动获取持仓信息
+    // 只有已配置API时，才自动获取持仓信息
     if (this.apiConfig) {
       setTimeout(() => {
         this.fetchPositionData();
@@ -64,6 +66,11 @@ class Calculator {
     // 保存API配置
     document.getElementById('saveApiConfig').addEventListener('click', () => {
       this.saveApiConfig();
+    });
+
+    // 清除API配置
+    document.getElementById('clearApiConfig').addEventListener('click', () => {
+      this.clearApiConfig();
     });
 
     // 同步持仓价格按钮
@@ -153,7 +160,13 @@ class Calculator {
 
   // 清除所有数据
   clearAllData() {
-    this.currentData = { openPrice: null, highPrice: null, lowPrice: null, currentPrice: null, symbol: '' };
+    this.currentData = {
+      openPrice: null,
+      highPrice: null,
+      lowPrice: null,
+      currentPrice: null,
+      symbol: ''
+    };
     this.currentFundingRate = null;
     this.positionData = null;
     document.getElementById('priceInfo').style.display = 'none';
@@ -227,6 +240,34 @@ class Calculator {
     return null;
   }
 
+  // 新增：根据API状态更新UI显隐
+  updateApiStatusUI() {
+    const hasApi = !!this.apiConfig;
+
+    // 1. 设置按钮状态点
+    const statusDot = document.getElementById('apiStatusDot');
+    if (statusDot) {
+      statusDot.style.display = hasApi ? 'block' : 'none';
+    }
+
+    // 2. 控制API相关功能按钮（如同步按钮）
+    const apiBtns = document.querySelectorAll('.api-feature-btn');
+    apiBtns.forEach(btn => {
+      btn.style.display = hasApi ? 'block' : 'none';
+    });
+
+    // 3. 如果没有API，隐藏并清空持仓信息栏
+    if (!hasApi) {
+      document.getElementById('positionInfo').style.display = 'none';
+      this.positionData = null;
+      // 停止持仓更新定时器
+      if (this.positionInterval) {
+        clearInterval(this.positionInterval);
+        this.positionInterval = null;
+      }
+    }
+  }
+
   // 保存API配置
   saveApiConfig() {
     const apiKey = document.getElementById('apiKey').value.trim();
@@ -238,18 +279,44 @@ class Calculator {
       return;
     }
 
-    const config = { apiKey, apiSecret, apiPassphrase };
+    const config = {
+      apiKey,
+      apiSecret,
+      apiPassphrase
+    };
     localStorage.setItem('okx_api_config', JSON.stringify(config));
     this.apiConfig = config;
 
     this.showMessage('API配置保存成功', 'success');
     setTimeout(() => this.hideMessage(), 2000);
 
+    // 更新界面状态
+    this.updateApiStatusUI();
+
     // 关闭弹窗
     this.closeModal();
 
     // 保存后立即获取持仓数据
     this.fetchPositionData();
+
+    // 重新启动自动更新以包含持仓
+    this.startAutoUpdate();
+  }
+
+  // 新增：清除API配置
+  clearApiConfig() {
+    localStorage.removeItem('okx_api_config');
+    this.apiConfig = null;
+
+    document.getElementById('apiKey').value = '';
+    document.getElementById('apiSecret').value = '';
+    document.getElementById('apiPassphrase').value = '';
+
+    this.updateApiStatusUI();
+    this.showMessage('API配置已清除', 'success');
+    setTimeout(() => this.hideMessage(), 2000);
+
+    this.closeModal();
   }
 
   // 更新API配置UI
@@ -271,7 +338,6 @@ class Calculator {
   // 获取持仓数据
   async fetchPositionData() {
     if (!this.apiConfig) {
-      console.log('未配置API密钥，跳过持仓数据获取');
       return;
     }
 
@@ -308,7 +374,6 @@ class Calculator {
         if (position && parseFloat(position.pos) !== 0) {
           this.positionData = position;
           this.updatePositionDisplay();
-          // 不再自动填充持仓价格，由用户点击同步按钮
         } else {
           this.positionData = null;
           document.getElementById('positionInfo').style.display = 'none';
@@ -319,8 +384,7 @@ class Calculator {
       }
     } catch (err) {
       console.error('获取持仓数据失败：', err);
-      this.positionData = null;
-      document.getElementById('positionInfo').style.display = 'none';
+      // 仅在明确配置了API但请求失败时提示（避免网络波动频繁弹窗，改为静默处理或console）
     }
   }
 
@@ -345,13 +409,12 @@ class Calculator {
     const positionSideEl = document.getElementById('positionSide');
     if (positionSideEl) {
       positionSideEl.textContent = posSide;
-      // 修复：当posSide既不是long也不是short时，应该有默认的className处理
       if (pos.posSide === 'long') {
         positionSideEl.className = 'positive';
       } else if (pos.posSide === 'short') {
         positionSideEl.className = 'negative';
       } else {
-        positionSideEl.className = 'neutral'; // 添加默认情况处理
+        positionSideEl.className = 'neutral';
       }
     }
 
@@ -401,7 +464,7 @@ class Calculator {
   // 同步持仓价格
   syncPositionPrice() {
     if (!this.positionData) {
-      this.showMessage('没有持仓数据，请先配置API并获取持仓信息', 'error');
+      this.showMessage('未获取到持仓数据，请确保已配置API并有持仓', 'error');
       setTimeout(() => this.hideMessage(), 2000);
       return;
     }
@@ -532,7 +595,13 @@ class Calculator {
       const lowPrice = parseFloat(k[3]); // 当日低
       const currentPrice = parseFloat(tickerData.data[0].last);
 
-      this.currentData = { openPrice, highPrice, lowPrice, currentPrice, symbol };
+      this.currentData = {
+        openPrice,
+        highPrice,
+        lowPrice,
+        currentPrice,
+        symbol
+      };
 
       // 自动设置价格精度
       this.autoSetPrecision([openPrice, highPrice, lowPrice, currentPrice]);
@@ -559,7 +628,13 @@ class Calculator {
     } catch (err) {
       console.error(err);
       this.showMessage(err.message || 'API调用失败，请检查网络或币种格式', 'error');
-      this.currentData = { openPrice: null, highPrice: null, lowPrice: null, currentPrice: null, symbol };
+      this.currentData = {
+        openPrice: null,
+        highPrice: null,
+        lowPrice: null,
+        currentPrice: null,
+        symbol
+      };
       this.updatePriceDisplay();
     } finally {
       this.isLoadingPrice = false;
@@ -583,7 +658,7 @@ class Calculator {
     const allDetailedCandles = [];
     let currentCursor = ''; // 分页游标 (请求比该ID更旧的数据)
 
-    // 增加最大请求限制，防止死循环，同时增加到100次以确保覆盖
+    // 增加最大请求限制，防止死循环
     const MAX_REQUESTS = 100;
     let requestCount = 0;
 
@@ -621,11 +696,17 @@ class Calculator {
 
       console.log(`获取到 ${allDetailedCandles.length} 条详细K线数据`);
 
-      return { detailedCandles: allDetailedCandles, bar: bar };
+      return {
+        detailedCandles: allDetailedCandles,
+        bar: bar
+      };
 
     } catch (err) {
       console.warn('获取详细历史数据失败:', err);
-      return { detailedCandles: [], bar: bar };
+      return {
+        detailedCandles: [],
+        bar: bar
+      };
     }
   }
 
@@ -660,7 +741,10 @@ class Calculator {
       const klines = data.data.slice(0, days).reverse();
 
       // 2. 获取详细数据以匹配时间
-      const { detailedCandles, bar } = await this.fetchDetailedHistoryAndMatch(symbol, days, klines);
+      const {
+        detailedCandles,
+        bar
+      } = await this.fetchDetailedHistoryAndMatch(symbol, days, klines);
 
       // 收集所有价格用于精度检测
       const allPrices = [];
@@ -720,7 +804,6 @@ class Calculator {
         });
 
         // 2. 对筛选出的K线按时间正序排序 (OKX返回的是倒序)
-        // 这很重要，确保当价格相同时，我们取到的是当天第一次出现的时间
         dayCandles.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
 
         if (dayCandles.length > 0) {
@@ -734,8 +817,7 @@ class Calculator {
             const l = parseFloat(dk[3]);
             const t = parseInt(dk[0]);
 
-            // 找最高价 (因为已排序，相同时保留第一个，所以用 > 而不是 >=)
-            // 修正：其实为了保险，我们初始化为负无穷。
+            // 找最高价
             if (h > maxHigh) {
               maxHigh = h;
               maxHighTs = t;
@@ -912,9 +994,15 @@ class Calculator {
         scrollX: true,
         scrollCollapse: true,
         responsive: false,
-        columnDefs: [
-          { targets: '_all', className: 'text-center' },
-          { targets: [3, 5], className: 'text-center text-muted', width: '8%' } // 设置时间列样式
+        columnDefs: [{
+            targets: '_all',
+            className: 'text-center'
+          },
+          {
+            targets: [3, 5],
+            className: 'text-center text-muted',
+            width: '8%'
+          } // 设置时间列样式
         ],
         language: {
           emptyTable: '暂无数据'
@@ -1030,13 +1118,16 @@ class Calculator {
       }
     }, 30000);
 
-    // 每 30 秒更新持仓数据（如果配置了API）
+    // 仅当配置了API时，才启动持仓轮询
     if (this.apiConfig) {
       this.positionInterval = setInterval(async () => {
-        try {
-          await this.fetchPositionData();
-        } catch (e) {
-          console.warn('持仓数据刷新失败：', e);
+        // 二次检查，防止运行中被清除配置
+        if (this.apiConfig) {
+          try {
+            await this.fetchPositionData();
+          } catch (e) {
+            console.warn('持仓数据刷新失败：', e);
+          }
         }
       }, 30000);
     }
@@ -1044,7 +1135,12 @@ class Calculator {
 
   updatePriceDisplay() {
     const priceInfo = document.getElementById('priceInfo');
-    const { openPrice, highPrice, lowPrice, currentPrice } = this.currentData;
+    const {
+      openPrice,
+      highPrice,
+      lowPrice,
+      currentPrice
+    } = this.currentData;
 
     if (isFinite(openPrice) && isFinite(currentPrice)) {
       const dailyChangePercent = ((currentPrice - openPrice) / openPrice) * 100;
@@ -1131,7 +1227,10 @@ class Calculator {
 
   calculate() {
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
-    const { openPrice, currentPrice } = this.currentData;
+    const {
+      openPrice,
+      currentPrice
+    } = this.currentData;
 
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');

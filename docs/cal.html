@@ -15,6 +15,7 @@
     <div class="header">
       <h1>涨跌幅计算器</h1>
       <button class="settings-btn" id="settingsBtn" title="API配置">
+        <div id="apiStatusDot" class="api-active-dot"></div>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
@@ -64,7 +65,7 @@
               <label for="holdPrice">持仓价格</label>
               <div class="input-with-button">
                 <input type="number" id="holdPrice" step="0.00000001" placeholder="输入您的持仓价格" />
-                <button type="button" id="syncPositionPrice" class="sync-btn" title="同步持仓均价">同步</button>
+                <button type="button" id="syncPositionPrice" class="sync-btn api-feature-btn" title="同步持仓均价">同步</button>
               </div>
             </div>
             <div class="form-group">
@@ -154,6 +155,7 @@
           <input type="password" id="apiPassphrase" placeholder="输入您的API Passphrase" />
         </div>
         <button id="saveApiConfig" class="btn-primary">保存配置</button>
+        <button id="clearApiConfig" class="btn-secondary btn-danger">清除配置</button>
       </div>
     </div>
   </div>
