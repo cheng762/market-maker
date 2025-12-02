@@ -961,10 +961,8 @@ class Calculator {
       return [
         data.date,
         data.openPrice,
-        `${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${highChangePrefix}${data.highChangePercent}%)</span>`,
-        data.highTime,
-        `${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${lowChangePrefix}${data.lowChangePercent}%)</span>`,
-        data.lowTime,
+        `${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${data.highTime}/${highChangePrefix}${data.highChangePercent}%)</span>`,
+        `${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${data.lowTime}/${lowChangePrefix}${data.lowChangePercent}%)</span>`,
         `${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>`,
         data.volume,
         `${data.amplitude}%`,
@@ -995,14 +993,9 @@ class Calculator {
         scrollCollapse: true,
         responsive: false,
         columnDefs: [{
-            targets: '_all',
-            className: 'text-center'
-          },
-          {
-            targets: [3, 5],
-            className: 'text-center text-muted',
-            width: '8%'
-          } // 设置时间列样式
+          targets: '_all',
+          className: 'text-center'
+        }
         ],
         language: {
           emptyTable: '暂无数据'
@@ -1027,9 +1020,7 @@ class Calculator {
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">日期</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">开盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最高</th>
-                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最高时间</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低</th>
-                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低时间</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">收盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">交易量</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">振幅</th>
@@ -1052,13 +1043,11 @@ class Calculator {
           <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
           <td style="padding: 8px 6px; text-align: center;">
-            ${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${highChangePrefix}${data.highChangePercent}%)</span>
+            ${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${data.highTime}/${highChangePrefix}${data.highChangePercent}%)</span>
           </td>
-          <td style="padding: 8px 6px; text-align: center; color: #666;">${data.highTime}</td>
           <td style="padding: 8px 6px; text-align: center;">
-            ${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${lowChangePrefix}${data.lowChangePercent}%)</span>
+            ${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${data.lowTime}/${lowChangePrefix}${data.lowChangePercent}%)</span>
           </td>
-          <td style="padding: 8px 6px; text-align: center; color: #666;">${data.lowTime}</td>
           <td style="padding: 8px 6px; text-align: center;">
             ${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>
           </td>
