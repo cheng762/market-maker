@@ -22,6 +22,7 @@ class Calculator {
     this.apiConfig = this.loadApiConfig(); // API配置
     this.positionData = null; // 持仓数据
     this.currentInstType = 'SPOT'; // 'SPOT' | 'SWAP'
+    this.messageTimer = null; // 消息自动消失定时器
     this.instruments = {
       SPOT: {
         'BTC': ['USDT', 'USDC', 'USD'],
@@ -141,6 +142,9 @@ class Calculator {
       // 保存币种到缓存
       this.saveSymbolCache(symbol);
 
+      // 同步至双列选择器 UI
+      this.syncSymbolToPairSelector();
+
       // 清除之前的定时器
       if (this.symbolInputTimeout) {
         clearTimeout(this.symbolInputTimeout);
@@ -162,7 +166,7 @@ class Calculator {
     document.getElementById('historyDays').addEventListener('change', () => {
       const symbol = document.getElementById('symbol').value.trim();
       if (symbol && this.currentData.currentPrice) {
-        this.fetchHistoryData();
+        this.fetchHistoryData(true);
       }
     });
 
@@ -685,9 +689,8 @@ class Calculator {
       return;
     }
 
-    // 防止重复请求
-    if (this.isLoadingPrice) return;
-    this.isLoadingPrice = true;
+    this.priceRequestId = (this.priceRequestId || 0) + 1;
+    const requestId = this.priceRequestId;
 
     this.showMessage('正在获取价格数据...', 'loading');
 
@@ -700,6 +703,8 @@ class Calculator {
       let tickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${symbol}`);
       let tickerData = await tickerResp.json();
 
+      if (requestId !== this.priceRequestId) return;
+
       // 如果第一遍获取失败（例如美股合约输入的 SKHYNIX-USDT 在现货不存在），自动尝试 -SWAP
       if ((klineData.code !== '0' || tickerData.code !== '0' || !klineData.data?.length || !tickerData.data?.length) && !symbol.toUpperCase().endsWith('-SWAP')) {
         const fallbackSymbol = `${symbol}-SWAP`;
@@ -708,10 +713,13 @@ class Calculator {
         const fbTickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${fallbackSymbol}`);
         const fbTickerData = await fbTickerResp.json();
 
+        if (requestId !== this.priceRequestId) return;
+
         if (fbKlineData.code === '0' && fbTickerData.code === '0' && fbKlineData.data?.length && fbTickerData.data?.length) {
           symbol = fallbackSymbol;
           document.getElementById('symbol').value = symbol;
           this.saveSymbolCache(symbol);
+          this.syncSymbolToPairSelector();
           klineData = fbKlineData;
           tickerData = fbTickerData;
         }
@@ -740,6 +748,7 @@ class Calculator {
 
       // 获取资金费率
       this.currentFundingRate = await this.fetchFundingRate(symbol);
+      if (requestId !== this.priceRequestId) return;
 
       this.updatePriceDisplay();
       this.syncTargetPricePrecision();
@@ -750,7 +759,7 @@ class Calculator {
       this.startAutoUpdate();
 
       // 自动获取历史数据
-      this.fetchHistoryData();
+      this.fetchHistoryData(true);
 
       // 如果配置了API，获取持仓数据
       if (this.apiConfig) {
@@ -758,6 +767,7 @@ class Calculator {
       }
 
     } catch (err) {
+      if (requestId !== this.priceRequestId) return;
       console.error(err);
       this.showMessage(err.message || 'API调用失败，请检查网络或币种格式', 'error');
       this.currentData = {
@@ -768,8 +778,6 @@ class Calculator {
         symbol
       };
       this.updatePriceDisplay();
-    } finally {
-      this.isLoadingPrice = false;
     }
   }
 
@@ -875,7 +883,7 @@ class Calculator {
     }
   }
 
-  async fetchHistoryData() {
+  async fetchHistoryData(force = false) {
     const symbol = document.getElementById('symbol').value.trim();
     const days = parseInt(document.getElementById('historyDays').value);
 
@@ -884,9 +892,36 @@ class Calculator {
       return;
     }
 
+    const queryKey = `${symbol}_${days}`;
+    if (!force && this.lastFetchedHistoryKey === queryKey && !this.isLoadingHistory) {
+      return;
+    }
+
     // 防止重复请求
     if (this.isLoadingHistory) return;
     this.isLoadingHistory = true;
+
+    // 1. 及时清理旧的历史数据展示，避免显示上一币种/上一次的残留数据
+    const summaryEl = document.getElementById('historySummary');
+    if (summaryEl) {
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `
+        <div class="history-loading-placeholder" style="text-align: center; padding: 28px 16px; background: rgba(255,255,255,0.7); border-radius: 12px; border: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; margin-bottom: 16px;">
+          <div style="font-size: 20px; margin-bottom: 8px;">⏳</div>
+          <div>正在拉取 <strong>${symbol}</strong> 最近 ${days} 天的历史 K 线与持仓分析数据...</div>
+        </div>
+      `;
+    }
+
+    const historyResultsEl = document.getElementById('historyResults');
+    if (historyResultsEl) {
+      historyResultsEl.style.display = 'none';
+    }
+
+    if (this.historyTable) {
+      this.historyTable.destroy();
+      this.historyTable = null;
+    }
 
     this.showMessage('正在获取历史数据...', 'loading');
 
@@ -902,7 +937,6 @@ class Calculator {
       }
 
       // 数据是按时间倒序的，需要反转为正序，并只取需要的天数
-      // 注意：API返回的数据可能比limit多或者正好，这里截取
       const klines = data.data.slice(0, days).reverse();
 
       // 2. 获取详细数据以匹配时间
@@ -927,14 +961,15 @@ class Calculator {
       const historyData = this.processHistoryData(klines, detailedCandles, bar, oiMap);
       console.log('处理后的历史数据:', historyData);
 
+      this.lastFetchedHistoryKey = queryKey;
       this.displayHistoryResults(historyData);
       this.showMessage(`历史数据获取成功 (${historyData.length}天)`, 'success');
 
     } catch (err) {
       console.error('获取历史数据错误:', err);
       this.showMessage(err.message || '获取历史数据失败', 'error');
-      document.getElementById('historySummary').style.display = 'none';
-      document.getElementById('historyResults').style.display = 'none';
+      if (summaryEl) summaryEl.style.display = 'none';
+      if (historyResultsEl) historyResultsEl.style.display = 'none';
     } finally {
       this.isLoadingHistory = false;
     }
@@ -1542,15 +1577,35 @@ class Calculator {
     this.hideMessage();
   }
 
-  showMessage(text, type = 'error') {
+  showMessage(text, type = 'error', duration = 0) {
+    if (this.messageTimer) {
+      clearTimeout(this.messageTimer);
+      this.messageTimer = null;
+    }
     const messageEl = document.getElementById('message');
+    if (!messageEl) return;
     messageEl.textContent = text;
     messageEl.className = `message ${type}`;
     messageEl.style.display = 'block';
+
+    // 成功提示或指定 duration 时，自动倒计时消失 (默认 3 秒)
+    if (duration > 0 || (type === 'success' && duration !== false)) {
+      const delay = (typeof duration === 'number' && duration > 0) ? duration : 3000;
+      this.messageTimer = setTimeout(() => {
+        this.hideMessage();
+      }, delay);
+    }
   }
 
   hideMessage() {
-    document.getElementById('message').style.display = 'none';
+    if (this.messageTimer) {
+      clearTimeout(this.messageTimer);
+      this.messageTimer = null;
+    }
+    const messageEl = document.getElementById('message');
+    if (messageEl) {
+      messageEl.style.display = 'none';
+    }
   }
 
   /* ==========================================================================
@@ -1665,14 +1720,15 @@ class Calculator {
   }
 
   // 根据 UI 选择重新合成 OKX instId 填写入 #symbol 框，并触发数据查询
-  updateSymbolFromPairSelector() {
+  updateSymbolFromPairSelector(force = false) {
     const baseInput = document.getElementById('baseCcyInput');
     const quoteSelect = document.getElementById('quoteCcySelect');
 
-    let base = baseInput ? baseInput.value.trim().toUpperCase() : 'BTC';
+    let rawBase = baseInput ? baseInput.value.trim().toUpperCase() : 'BTC';
     let quote = quoteSelect ? quoteSelect.value : 'USDT';
 
-    if (!base) base = 'BTC';
+    if (!rawBase) rawBase = 'BTC';
+    let base = rawBase.split('-')[0];
     if (!quote) quote = 'USDT';
 
     let instId = `${base}-${quote}`;
@@ -1682,6 +1738,11 @@ class Calculator {
 
     const symbolInput = document.getElementById('symbol');
     if (symbolInput) {
+      // 若非强制且新旧代码完全一致且已成功获取过价格，不进行重复拉取
+      if (!force && symbolInput.value === instId && this.currentData && this.currentData.symbol === instId) {
+        return;
+      }
+
       symbolInput.value = instId;
       this.saveSymbolCache(instId);
 
@@ -1727,6 +1788,9 @@ class Calculator {
       baseList.innerHTML = displayBases.map(b => `<li data-base="${b}">${b}</li>`).join('');
 
       baseList.querySelectorAll('li[data-base]').forEach(li => {
+        li.addEventListener('mousedown', (e) => {
+          e.preventDefault(); // 阻止 input 失去焦点触发 change 事件
+        });
         li.addEventListener('click', () => {
           const selectedBase = li.dataset.base;
           const baseInput = document.getElementById('baseCcyInput');
@@ -1809,8 +1873,9 @@ class Calculator {
 
       if (swapData.code === '0' && Array.isArray(swapData.data)) {
         swapData.data.forEach(item => {
-          const base = item.ctValCcy || item.settleCcy || item.instId.split('-')[0];
-          const quote = item.settleCcy || item.instId.split('-')[1];
+          const parts = item.instId.split('-');
+          const base = parts[0];
+          const quote = parts[1];
           if (base && quote) {
             if (!newInstruments.SWAP[base]) newInstruments.SWAP[base] = [];
             if (!newInstruments.SWAP[base].includes(quote)) newInstruments.SWAP[base].push(quote);
