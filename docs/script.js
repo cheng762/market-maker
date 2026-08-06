@@ -7,6 +7,8 @@ class Calculator {
       currentPrice: null,
       symbol: 'BTC-USDT'
     };
+    this.positionType = 'spot'; // 'spot' | 'long' | 'short'
+    this.leverage = 1;
     this.lastModified = null; // 'percent' | 'price' | 'daily'
     this.tickerInterval = null;
     this.fundingRateInterval = null; // 资金费率更新定时器
@@ -43,6 +45,40 @@ class Calculator {
     document.getElementById('settingsBtn').addEventListener('click', () => {
       this.openModal();
     });
+
+    // 持仓类型按钮切换
+    const posTypeBtns = document.querySelectorAll('.pos-type-btn');
+    posTypeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        posTypeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.positionType = btn.dataset.type;
+
+        const leverageGroup = document.getElementById('leverageGroup');
+        if (this.positionType === 'spot') {
+          leverageGroup.style.display = 'none';
+        } else {
+          leverageGroup.style.display = 'block';
+        }
+
+        // 更新期望点位/幅度关联显示
+        if (this.lastModified === 'percent') {
+          this.updateTargetPriceFromPercent();
+        } else if (this.lastModified === 'price') {
+          this.updateTargetPercentFromPrice();
+        }
+        this.calculate();
+      });
+    });
+
+    // 杠杆倍数输入
+    const leverageInput = document.getElementById('leverageInput');
+    if (leverageInput) {
+      leverageInput.addEventListener('input', () => {
+        this.leverage = Math.max(1, parseFloat(leverageInput.value) || 1);
+        this.calculate();
+      });
+    }
 
     // 关闭弹窗
     document.getElementById('closeModal').addEventListener('click', () => {
@@ -173,7 +209,8 @@ class Calculator {
     document.getElementById('positionInfo').style.display = 'none';
     document.getElementById('historySummary').style.display = 'none';
     document.getElementById('historyResults').style.display = 'none';
-    document.getElementById('results').style.display = 'none';
+    const resultsEl = document.getElementById('results');
+    if (resultsEl) resultsEl.style.display = 'none';
     this.hideMessage();
 
     // 清理 DataTables
@@ -335,21 +372,50 @@ class Calculator {
     return CryptoJS.enc.Base64.stringify(hmac);
   }
 
+  // 辅助方法：解析永续合约 Symbol
+  resolveSwapSymbol(symbol) {
+    if (!symbol) return '';
+    const s = symbol.trim();
+    if (s.toUpperCase().endsWith('-SWAP')) {
+      return s;
+    }
+    return `${s}-SWAP`;
+  }
+
+  // 辅助方法：设置持仓类型UI状态
+  setPositionType(type) {
+    this.positionType = type;
+    const posTypeBtns = document.querySelectorAll('.pos-type-btn');
+    posTypeBtns.forEach(btn => {
+      if (btn.dataset.type === type) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    const leverageGroup = document.getElementById('leverageGroup');
+    if (type === 'spot') {
+      if (leverageGroup) leverageGroup.style.display = 'none';
+    } else {
+      if (leverageGroup) leverageGroup.style.display = 'block';
+    }
+  }
+
   // 获取持仓数据
   async fetchPositionData() {
     if (!this.apiConfig) {
       return;
     }
 
-    const symbol = document.getElementById('symbol').value.trim();
-    if (!symbol) return;
+    const rawSymbol = document.getElementById('symbol').value.trim();
+    if (!rawSymbol) return;
 
     try {
-      // 将现货交易对转换为永续合约
-      const instId = symbol.replace('-', '-') + '-SWAP';
+      const swapInstId = this.resolveSwapSymbol(rawSymbol);
       const timestamp = new Date().toISOString();
       const method = 'GET';
-      const requestPath = `/api/v5/account/positions?instType=SWAP&instId=${instId}`;
+      const requestPath = `/api/v5/account/positions?instId=${swapInstId}`;
 
       const signature = this.generateSignature(timestamp, method, requestPath);
 
@@ -370,7 +436,7 @@ class Calculator {
 
       if (data.code === '0' && data.data?.length > 0) {
         // 找到当前币种的持仓
-        const position = data.data.find(p => p.instId === instId);
+        const position = data.data.find(p => p.instId === swapInstId || p.instId === rawSymbol);
         if (position && parseFloat(position.pos) !== 0) {
           this.positionData = position;
           this.updatePositionDisplay();
@@ -384,7 +450,6 @@ class Calculator {
       }
     } catch (err) {
       console.error('获取持仓数据失败：', err);
-      // 仅在明确配置了API但请求失败时提示（避免网络波动频繁弹窗，改为静默处理或console）
     }
   }
 
@@ -405,13 +470,21 @@ class Calculator {
     const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
 
     // 持仓方向
-    const posSide = pos.posSide === 'long' ? '做多' : (pos.posSide === 'short' ? '做空' : pos.posSide);
+    let posSideText = '持仓';
+    if (pos.posSide === 'long') {
+      posSideText = '做多';
+    } else if (pos.posSide === 'short') {
+      posSideText = '做空';
+    } else if (pos.posSide === 'net') {
+      posSideText = parseFloat(pos.pos) < 0 ? '做空' : '做多';
+    }
+
     const positionSideEl = document.getElementById('positionSide');
     if (positionSideEl) {
-      positionSideEl.textContent = posSide;
-      if (pos.posSide === 'long') {
+      positionSideEl.textContent = posSideText;
+      if (posSideText === '做多') {
         positionSideEl.className = 'positive';
-      } else if (pos.posSide === 'short') {
+      } else if (posSideText === '做空') {
         positionSideEl.className = 'negative';
       } else {
         positionSideEl.className = 'neutral';
@@ -421,7 +494,7 @@ class Calculator {
     // 持仓数量
     const positionSizeEl = document.getElementById('positionSize');
     if (positionSizeEl) {
-      positionSizeEl.textContent = parseFloat(pos.margin).toFixed(4);
+      positionSizeEl.textContent = parseFloat(pos.margin || pos.pos || 0).toFixed(4);
     }
 
     // 持仓均价
@@ -474,8 +547,27 @@ class Calculator {
 
     if (avgPx > 0 && isFinite(avgPx)) {
       document.getElementById('holdPrice').value = avgPx.toFixed(precision);
+
+      // 自动设置持仓方向
+      const rawPosSide = this.positionData.posSide;
+      let side = 'long';
+      if (rawPosSide === 'short') {
+        side = 'short';
+      } else if (rawPosSide === 'net') {
+        side = parseFloat(this.positionData.pos) < 0 ? 'short' : 'long';
+      }
+      this.setPositionType(side);
+
+      // 自动设置杠杆
+      const lever = parseFloat(this.positionData.lever);
+      if (lever && isFinite(lever)) {
+        this.leverage = lever;
+        const leverageInput = document.getElementById('leverageInput');
+        if (leverageInput) leverageInput.value = lever;
+      }
+
       this.calculate();
-      this.showMessage('已同步持仓均价', 'success');
+      this.showMessage('已同步持仓均价及合约参数', 'success');
       setTimeout(() => this.hideMessage(), 1500);
     } else {
       this.showMessage('持仓均价无效', 'error');
@@ -546,8 +638,7 @@ class Calculator {
   // 获取资金费率
   async fetchFundingRate(symbol) {
     try {
-      // 将现货交易对转换为永续合约
-      const swapSymbol = symbol.replace('-', '-') + '-SWAP';
+      const swapSymbol = this.resolveSwapSymbol(symbol);
       const resp = await fetch(`https://www.okx.com/api/v5/public/funding-rate?instId=${swapSymbol}`);
       const data = await resp.json();
 
@@ -564,7 +655,7 @@ class Calculator {
   }
 
   async fetchPriceData() {
-    const symbol = document.getElementById('symbol').value.trim();
+    let symbol = document.getElementById('symbol').value.trim();
     if (!symbol) {
       this.showMessage('请输入币种', 'error');
       return;
@@ -578,12 +669,29 @@ class Calculator {
 
     try {
       // 获取 1D K 线（开盘价/最高/最低）
-      const klineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1D&limit=1`);
-      const klineData = await klineResp.json();
+      let klineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1D&limit=1`);
+      let klineData = await klineResp.json();
 
       // 获取最新 ticker（当前价）
-      const tickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${symbol}`);
-      const tickerData = await tickerResp.json();
+      let tickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${symbol}`);
+      let tickerData = await tickerResp.json();
+
+      // 如果第一遍获取失败（例如美股合约输入的 SKHYNIX-USDT 在现货不存在），自动尝试 -SWAP
+      if ((klineData.code !== '0' || tickerData.code !== '0' || !klineData.data?.length || !tickerData.data?.length) && !symbol.toUpperCase().endsWith('-SWAP')) {
+        const fallbackSymbol = `${symbol}-SWAP`;
+        const fbKlineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${fallbackSymbol}&bar=1D&limit=1`);
+        const fbKlineData = await fbKlineResp.json();
+        const fbTickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${fallbackSymbol}`);
+        const fbTickerData = await fbTickerResp.json();
+
+        if (fbKlineData.code === '0' && fbTickerData.code === '0' && fbKlineData.data?.length && fbTickerData.data?.length) {
+          symbol = fallbackSymbol;
+          document.getElementById('symbol').value = symbol;
+          this.saveSymbolCache(symbol);
+          klineData = fbKlineData;
+          tickerData = fbTickerData;
+        }
+      }
 
       if (klineData.code !== '0' || tickerData.code !== '0' || !klineData.data?.length || !tickerData.data?.length) {
         throw new Error('获取价格数据失败，请检查币种格式或稍后重试');
@@ -710,6 +818,39 @@ class Calculator {
     }
   }
 
+  // 新增：获取历史持仓量 (Open Interest)
+  async fetchOpenInterestHistory(symbol, days) {
+    try {
+      // 从 symbol 中提取币种 (例如 BTC-USDT -> BTC)
+      const ccy = symbol.split('-')[0];
+      if (!ccy) return null;
+
+      // 获取历史 OI 数据 (按币种聚合)
+      // 使用 api.allorigins.win 解决 CORS 问题 (corsproxy.io 被屏蔽)
+      const resp = await fetch(`https://api.allorigins.win/get?url=` + encodeURIComponent(`https://www.okx.com/api/v5/rubik/stat/contracts/open-interest-volume?ccy=${ccy}&period=1D`));
+      const rawData = await resp.json();
+      const data = JSON.parse(rawData.contents);
+
+      if (data.code === '0' && data.data?.length) {
+        // 构建 timestamp -> oi 的映射
+        const oiMap = {};
+        data.data.forEach(item => {
+          // item: [ts, oi, vol]
+          const ts = parseInt(item[0]);
+          const oi = parseFloat(item[1]);
+          // 将时间戳归一化到当天的 00:00:00 (UTC+8) 或者直接使用原始时间戳匹配
+          // OKX 返回的时间戳通常是整点，这里我们假设它与 K 线时间戳对齐 (都是开盘时间)
+          oiMap[ts] = oi;
+        });
+        return oiMap;
+      }
+      return null;
+    } catch (err) {
+      console.warn('获取持仓量数据失败:', err);
+      return null;
+    }
+  }
+
   async fetchHistoryData() {
     const symbol = document.getElementById('symbol').value.trim();
     const days = parseInt(document.getElementById('historyDays').value);
@@ -746,6 +887,9 @@ class Calculator {
         bar
       } = await this.fetchDetailedHistoryAndMatch(symbol, days, klines);
 
+      // 3. 并行获取持仓量数据
+      const oiMap = await this.fetchOpenInterestHistory(symbol, days);
+
       // 收集所有价格用于精度检测
       const allPrices = [];
       klines.forEach(k => {
@@ -756,7 +900,7 @@ class Calculator {
         this.autoSetPrecision(allPrices);
       }
 
-      const historyData = this.processHistoryData(klines, detailedCandles, bar);
+      const historyData = this.processHistoryData(klines, detailedCandles, bar, oiMap);
       console.log('处理后的历史数据:', historyData);
 
       this.displayHistoryResults(historyData);
@@ -772,7 +916,7 @@ class Calculator {
     }
   }
 
-  processHistoryData(klines, detailedCandles, barType) {
+  processHistoryData(klines, detailedCandles, barType, oiMap) {
     const historyData = [];
     let prevClosePrice = null;
     let firstOpenPrice = null;
@@ -866,20 +1010,27 @@ class Calculator {
 
       const cumulativeChange = ((closePrice - firstOpenPrice) / firstOpenPrice) * 100;
 
+      // 获取当天的 OI
+      let oi = null;
+      if (oiMap && oiMap[timestamp]) {
+        oi = oiMap[timestamp];
+      }
+
       historyData.push({
         date: dateStr,
         openPrice: openPrice.toFixed(this.currentPrecision),
         highPrice: highPrice.toFixed(this.currentPrecision),
-        highTime: highTimeStr,
         lowPrice: lowPrice.toFixed(this.currentPrecision),
-        lowTime: lowTimeStr,
         closePrice: closePrice.toFixed(this.currentPrecision),
-        volume: this.formatVolume(volume),
+        volume: volume,
+        oi: oi, // 新增 OI 字段
+        amplitude: amplitude.toFixed(2),
         dailyChange: dailyChange.toFixed(2),
         cumulativeChange: cumulativeChange.toFixed(2),
         highChangePercent: highChangePercent.toFixed(2),
         lowChangePercent: lowChangePercent.toFixed(2),
-        amplitude: amplitude.toFixed(2)
+        highTime: highTimeStr,
+        lowTime: lowTimeStr
       });
 
       prevClosePrice = closePrice;
@@ -961,11 +1112,12 @@ class Calculator {
       return [
         data.date,
         data.openPrice,
+        `${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>`,
         `${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${data.highTime}/${highChangePrefix}${data.highChangePercent}%)</span>`,
         `${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${data.lowTime}/${lowChangePrefix}${data.lowChangePercent}%)</span>`,
-        `${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>`,
-        data.volume,
         `${data.amplitude}%`,
+        this.formatVolume(data.volume),
+        data.oi ? this.formatVolume(data.oi) : '-',
         `<span class="${cumulativeChangeClass}">${cumulativeChangePrefix}${data.cumulativeChange}%</span>`
       ];
     });
@@ -1019,11 +1171,12 @@ class Calculator {
               <tr style="background: #e5e7eb; position: sticky; top: 0;">
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">日期</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">开盘</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">收盘</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最高</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">最低</th>
-                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">收盘</th>
-                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">交易量</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">振幅</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">成交额</th>
+                <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">持仓量(OI)</th>
                 <th style="padding: 10px 8px; text-align: center; border-bottom: 2px solid #d1d5db;">累计涨跌幅</th>
               </tr>
             </thead>
@@ -1041,18 +1194,18 @@ class Calculator {
         <tr style="border-bottom: 1px solid #e1e5e9;">
           <td style="padding: 8px 6px; text-align: center;">${data.date}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
-          <td style="padding: 8px 6px; text-align: center;">${data.openPrice}</td>
+          <td style="padding: 8px 6px; text-align: center;">
+            ${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>
+          </td>
           <td style="padding: 8px 6px; text-align: center;">
             ${data.highPrice} <span class="sub-info inline ${highChangeClass}">(${data.highTime}/${highChangePrefix}${data.highChangePercent}%)</span>
           </td>
           <td style="padding: 8px 6px; text-align: center;">
             ${data.lowPrice} <span class="sub-info inline ${lowChangeClass}">(${data.lowTime}/${lowChangePrefix}${data.lowChangePercent}%)</span>
           </td>
-          <td style="padding: 8px 6px; text-align: center;">
-            ${data.closePrice} <span class="sub-info inline ${dailyChangeClass}">(${dailyChangePrefix}${data.dailyChange}%)</span>
-          </td>
-          <td style="padding: 8px 6px; text-align: center;">${data.volume}</td>
           <td style="padding: 8px 6px; text-align: center;">${data.amplitude}%</td>
+          <td style="padding: 8px 6px; text-align: center;">${this.formatVolume(data.volume)}</td>
+          <td style="padding: 8px 6px; text-align: center;">${data.oi ? this.formatVolume(data.oi) : '-'}</td>
           <td style="padding: 8px 6px; text-align: center;"><span class="${cumulativeChangeClass}">${cumulativeChangePrefix}${data.cumulativeChange}%</span></td>
         </tr>
       `;
@@ -1131,7 +1284,7 @@ class Calculator {
       currentPrice
     } = this.currentData;
 
-    if (isFinite(openPrice) && isFinite(currentPrice)) {
+    if (openPrice !== null && currentPrice !== null && isFinite(openPrice) && isFinite(currentPrice)) {
       const dailyChangePercent = ((currentPrice - openPrice) / openPrice) * 100;
 
       // 确保精度值有效
@@ -1140,10 +1293,10 @@ class Calculator {
       document.getElementById('openPrice').textContent = openPrice.toFixed(precision);
       document.getElementById('currentPrice').textContent = currentPrice.toFixed(precision);
 
-      if (isFinite(highPrice)) {
+      if (highPrice !== null && isFinite(highPrice)) {
         document.getElementById('highPrice').textContent = highPrice.toFixed(precision);
       }
-      if (isFinite(lowPrice)) {
+      if (lowPrice !== null && isFinite(lowPrice)) {
         document.getElementById('lowPrice').textContent = lowPrice.toFixed(precision);
       }
 
@@ -1172,8 +1325,18 @@ class Calculator {
   updateTargetPriceFromPercent() {
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const targetPercent = parseFloat(document.getElementById('targetPercent').value);
+    const isContract = this.positionType !== 'spot';
+    const leverage = isContract ? Math.max(1, parseFloat(document.getElementById('leverageInput')?.value) || this.leverage || 1) : 1;
+
     if (isFinite(holdPrice) && isFinite(targetPercent)) {
-      const targetPrice = holdPrice * (1 + targetPercent / 100);
+      // 期望幅度为保证金收益率 (ROE%)，实际币价变动幅度 = ROE% / 杠杆
+      const priceChangePct = targetPercent / leverage;
+      let targetPrice;
+      if (this.positionType === 'short') {
+        targetPrice = holdPrice * (1 - priceChangePct / 100);
+      } else {
+        targetPrice = holdPrice * (1 + priceChangePct / 100);
+      }
       document.getElementById('targetPrice').value = targetPrice.toFixed(this.currentPrecision);
     }
   }
@@ -1182,8 +1345,18 @@ class Calculator {
   updateTargetPercentFromPrice() {
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const targetPrice = parseFloat(document.getElementById('targetPrice').value);
+    const isContract = this.positionType !== 'spot';
+    const leverage = isContract ? Math.max(1, parseFloat(document.getElementById('leverageInput')?.value) || this.leverage || 1) : 1;
+
     if (isFinite(holdPrice) && isFinite(targetPrice) && holdPrice !== 0) {
-      const targetPercent = ((targetPrice - holdPrice) / holdPrice) * 100;
+      let priceChangePct;
+      if (this.positionType === 'short') {
+        priceChangePct = ((holdPrice - targetPrice) / holdPrice) * 100;
+      } else {
+        priceChangePct = ((targetPrice - holdPrice) / holdPrice) * 100;
+      }
+      // 期望幅度 = 币价变动幅度 * 杠杆 (ROE%)
+      const targetPercent = priceChangePct * leverage;
       document.getElementById('targetPercent').value = targetPercent.toFixed(2);
     }
   }
@@ -1193,13 +1366,22 @@ class Calculator {
     const openPrice = this.currentData.openPrice;
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const dailyExpect = parseFloat(document.getElementById('dailyExpectPercent').value);
+    const isContract = this.positionType !== 'spot';
+    const leverage = isContract ? Math.max(1, parseFloat(document.getElementById('leverageInput')?.value) || this.leverage || 1) : 1;
+
     if (!isFinite(openPrice)) return;
 
     if (isFinite(dailyExpect)) {
       const targetPrice = openPrice * (1 + dailyExpect / 100);
       document.getElementById('targetPrice').value = targetPrice.toFixed(this.currentPrecision);
       if (isFinite(holdPrice) && holdPrice !== 0) {
-        const targetPercent = ((targetPrice - holdPrice) / holdPrice) * 100;
+        let priceChangePct;
+        if (this.positionType === 'short') {
+          priceChangePct = ((holdPrice - targetPrice) / holdPrice) * 100;
+        } else {
+          priceChangePct = ((targetPrice - holdPrice) / holdPrice) * 100;
+        }
+        const targetPercent = priceChangePct * leverage;
         document.getElementById('targetPercent').value = targetPercent.toFixed(2);
       }
     }
@@ -1223,29 +1405,26 @@ class Calculator {
 
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');
-      document.getElementById('results').style.display = 'none';
       return;
     }
     if (!isFinite(holdPrice) || holdPrice <= 0) {
       this.showMessage('请输入有效的持仓价格', 'error');
-      document.getElementById('results').style.display = 'none';
       return;
     }
 
-    // 当前持仓盈亏（相对当前价）
-    const currentPnL = ((currentPrice - holdPrice) / holdPrice) * 100;
+    const isContract = this.positionType !== 'spot';
+    const leverage = isContract ? Math.max(1, parseFloat(document.getElementById('leverageInput')?.value) || this.leverage || 1) : 1;
+    this.leverage = leverage;
 
-    let results = `
-      <table>
-        <thead><tr><th>项目</th><th>数值</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>当前持仓盈亏</td>
-            <td class="${currentPnL >= 0 ? 'positive' : 'negative'}">
-              ${currentPnL >= 0 ? '+' : ''}${currentPnL.toFixed(2)}%
-            </td>
-          </tr>
-    `;
+    // 更新期望幅度 Input 的 Label 提示
+    const targetPercentLabel = document.getElementById('targetPercentLabel');
+    if (targetPercentLabel) {
+      if (isContract) {
+        targetPercentLabel.textContent = `期望幅度 (%)（ROE, ${leverage}x杠杆）`;
+      } else {
+        targetPercentLabel.textContent = `期望幅度 (%)（相对持仓价）`;
+      }
+    }
 
     // 期望值联动：按最后修改优先，其次使用可用字段推导
     const tpInput = parseFloat(document.getElementById('targetPrice').value);
@@ -1253,29 +1432,47 @@ class Calculator {
     const dailyInput = parseFloat(document.getElementById('dailyExpectPercent').value);
 
     let finalTargetPrice = null;
-    let finalTargetPercent = null;
+    let finalTargetRoe = null;
+    let targetPriceChangePct = null;
     let targetVsOpen = null;
 
-    const hasOpen = isFinite(openPrice);
+    const hasOpen = openPrice !== null && isFinite(openPrice);
 
     const computeFromDaily = () => {
       if (hasOpen && isFinite(dailyInput)) {
         finalTargetPrice = openPrice * (1 + dailyInput / 100);
-        finalTargetPercent = ((finalTargetPrice - holdPrice) / holdPrice) * 100;
+        if (this.positionType === 'short') {
+          targetPriceChangePct = ((holdPrice - finalTargetPrice) / holdPrice) * 100;
+        } else {
+          targetPriceChangePct = ((finalTargetPrice - holdPrice) / holdPrice) * 100;
+        }
+        finalTargetRoe = targetPriceChangePct * leverage;
         targetVsOpen = dailyInput;
       }
     };
+
     const computeFromPercent = () => {
       if (isFinite(tpctInput)) {
-        finalTargetPrice = holdPrice * (1 + tpctInput / 100);
-        finalTargetPercent = tpctInput;
+        finalTargetRoe = tpctInput;
+        targetPriceChangePct = tpctInput / leverage;
+        if (this.positionType === 'short') {
+          finalTargetPrice = holdPrice * (1 - targetPriceChangePct / 100);
+        } else {
+          finalTargetPrice = holdPrice * (1 + targetPriceChangePct / 100);
+        }
         if (hasOpen) targetVsOpen = ((finalTargetPrice - openPrice) / openPrice) * 100;
       }
     };
+
     const computeFromPrice = () => {
       if (isFinite(tpInput)) {
         finalTargetPrice = tpInput;
-        finalTargetPercent = ((tpInput - holdPrice) / holdPrice) * 100;
+        if (this.positionType === 'short') {
+          targetPriceChangePct = ((holdPrice - tpInput) / holdPrice) * 100;
+        } else {
+          targetPriceChangePct = ((tpInput - holdPrice) / holdPrice) * 100;
+        }
+        finalTargetRoe = targetPriceChangePct * leverage;
         if (hasOpen) targetVsOpen = ((tpInput - openPrice) / openPrice) * 100;
       }
     };
@@ -1284,41 +1481,13 @@ class Calculator {
     if (this.lastModified === 'daily') computeFromDaily();
     else if (this.lastModified === 'percent') computeFromPercent();
     else if (this.lastModified === 'price') computeFromPrice();
-    // 若没有最后修改标记或对应数据缺失，回退尝试其他来源
-    if (!isFinite(finalTargetPrice)) {
+
+    if (finalTargetPrice === null || !isFinite(finalTargetPrice)) {
       if (isFinite(dailyInput) && hasOpen) computeFromDaily();
       else if (isFinite(tpInput)) computeFromPrice();
       else if (isFinite(tpctInput)) computeFromPercent();
     }
 
-    if (isFinite(finalTargetPrice)) {
-      results += `
-        <tr>
-          <td>目标价格</td>
-          <td>${finalTargetPrice.toFixed(this.currentPrecision)}</td>
-        </tr>
-        <tr>
-          <td>相对持仓价涨跌幅</td>
-          <td class="${finalTargetPercent >= 0 ? 'positive' : 'negative'}">
-            ${finalTargetPercent >= 0 ? '+' : ''}${finalTargetPercent.toFixed(2)}%
-          </td>
-        </tr>
-      `;
-      if (hasOpen && isFinite(targetVsOpen)) {
-        results += `
-          <tr>
-            <td>相对开盘价涨跌幅</td>
-            <td class="${targetVsOpen >= 0 ? 'positive' : 'negative'}">
-              ${targetVsOpen >= 0 ? '+' : ''}${targetVsOpen.toFixed(2)}%
-            </td>
-          </tr>
-        `;
-      }
-    }
-
-    results += '</tbody></table>';
-    document.getElementById('results').innerHTML = results;
-    document.getElementById('results').style.display = 'block';
     this.hideMessage();
   }
 
