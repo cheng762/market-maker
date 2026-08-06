@@ -184,6 +184,30 @@ class Calculator {
       this.calculate();
     });
 
+    // 距开盘价幅度 (%) 输入 -> 倒推持仓价格
+    document.getElementById('holdVsOpenPercent')?.addEventListener('input', (e) => {
+      const openPrice = this.currentData.openPrice;
+      const pct = parseFloat(e.target.value);
+      const holdPriceEl = document.getElementById('holdPrice');
+      if (isFinite(openPrice) && openPrice > 0 && isFinite(pct)) {
+        const calculatedHoldPrice = openPrice * (1 + pct / 100);
+        holdPriceEl.value = calculatedHoldPrice.toFixed(this.currentPrecision || 2);
+        holdPriceEl.classList.remove('input-error');
+      } else if (!e.target.value) {
+        holdPriceEl.value = '';
+      }
+      if (document.getElementById('dailyExpectPercent').value.trim() !== '') {
+        this.lastModified = 'daily';
+        this.updateFromDailyExpected();
+      }
+      this.calculate();
+    });
+
+    // 保证金 / 投入本金 (USDT) 输入
+    document.getElementById('marginInput')?.addEventListener('input', () => {
+      this.calculate();
+    });
+
     // 期望幅度（相对持仓）
     document.getElementById('targetPercent').addEventListener('input', () => {
       this.lastModified = 'percent';
@@ -1479,6 +1503,65 @@ class Calculator {
     document.getElementById('dailyExpectPercent').value = dailyExpect.toFixed(2);
   }
 
+  // 计算预估强平爆仓价格
+  calculateEstLiquidationPrice(holdPrice, leverage) {
+    if (!isFinite(holdPrice) || holdPrice <= 0) return null;
+
+    if (this.positionType === 'spot') {
+      return { price: null, pct: null, isSpot: true };
+    }
+
+    const mmr = 0.005; // 逐仓维持保证金率默认 0.5%
+    const lev = Math.max(1, leverage || 1);
+    let liqPrice = null;
+    let pct = null;
+
+    if (this.positionType === 'long') {
+      liqPrice = holdPrice * (1 - 1 / lev + mmr);
+      if (liqPrice < 0) liqPrice = 0;
+      pct = ((liqPrice - holdPrice) / holdPrice) * 100;
+    } else if (this.positionType === 'short') {
+      liqPrice = holdPrice * (1 + 1 / lev - mmr);
+      pct = ((liqPrice - holdPrice) / holdPrice) * 100;
+    }
+
+    return { price: liqPrice, pct, isSpot: false };
+  }
+
+  // 同步显示持仓价格与开盘价的涨跌幅度
+  updateHoldVsOpenDisplay(holdPrice, openPrice) {
+    const holdVsOpenPercentEl = document.getElementById('holdVsOpenPercent');
+    const holdVsOpenDiffSubtext = document.getElementById('holdVsOpenDiffSubtext');
+
+    if (isFinite(holdPrice) && holdPrice > 0 && isFinite(openPrice) && openPrice > 0) {
+      const diff = holdPrice - openPrice;
+      const pct = (diff / openPrice) * 100;
+      const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+
+      const sign = diff >= 0 ? '+' : '';
+      const colorClass = diff > 0 ? 'positive' : (diff < 0 ? 'negative' : 'neutral');
+
+      if (holdVsOpenPercentEl && document.activeElement !== holdVsOpenPercentEl) {
+        holdVsOpenPercentEl.value = pct.toFixed(2);
+      }
+
+      if (holdVsOpenDiffSubtext) {
+        const formattedDiff = `${sign}${diff.toFixed(precision)}`;
+        const formattedOpen = openPrice.toFixed(precision);
+        holdVsOpenDiffSubtext.innerHTML = `较开盘(${formattedOpen})价差: <span class="${colorClass}">${formattedDiff}</span>`;
+        holdVsOpenDiffSubtext.style.display = 'block';
+      }
+    } else {
+      if (holdVsOpenPercentEl && document.activeElement !== holdVsOpenPercentEl) {
+        holdVsOpenPercentEl.value = '';
+      }
+      if (holdVsOpenDiffSubtext) {
+        holdVsOpenDiffSubtext.style.display = 'none';
+        holdVsOpenDiffSubtext.innerHTML = '';
+      }
+    }
+  }
+
   calculate() {
     const holdPriceEl = document.getElementById('holdPrice');
     const holdPrice = parseFloat(holdPriceEl.value);
@@ -1486,6 +1569,9 @@ class Calculator {
       openPrice,
       currentPrice
     } = this.currentData;
+
+    // 实时更新持仓价相对开盘价的涨跌幅显示
+    this.updateHoldVsOpenDisplay(holdPrice, openPrice);
 
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');
@@ -1501,6 +1587,39 @@ class Calculator {
     const isContract = this.positionType !== 'spot';
     const leverage = isContract ? Math.max(1, parseFloat(document.getElementById('leverageInput')?.value) || this.leverage || 1) : 1;
     this.leverage = leverage;
+
+    // 计算并展示预估爆仓价格
+    const liqInfo = this.calculateEstLiquidationPrice(holdPrice, leverage);
+    const estLiqSubtext = document.getElementById('estLiquidationSubtext');
+    const expectedLiqPriceEl = document.getElementById('expectedLiqPriceValue');
+    const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+
+    if (liqInfo) {
+      if (liqInfo.isSpot) {
+        if (estLiqSubtext) {
+          estLiqSubtext.textContent = '现货交易无爆仓风险';
+          estLiqSubtext.style.display = 'block';
+        }
+        if (expectedLiqPriceEl) {
+          expectedLiqPriceEl.textContent = '无爆仓风险';
+          expectedLiqPriceEl.className = 'pnl-value neutral';
+        }
+      } else if (liqInfo.price !== null) {
+        const formattedLiq = liqInfo.price.toFixed(precision);
+        const formattedPct = `${liqInfo.pct >= 0 ? '+' : ''}${liqInfo.pct.toFixed(2)}%`;
+        if (estLiqSubtext) {
+          estLiqSubtext.innerHTML = `预估强平爆仓价: <strong class="negative">${formattedLiq}</strong> (距持仓价 ${formattedPct})`;
+          estLiqSubtext.style.display = 'block';
+        }
+        if (expectedLiqPriceEl) {
+          expectedLiqPriceEl.innerHTML = `${formattedLiq} <span style="font-size:12px; font-weight:normal;">(${formattedPct})</span>`;
+          expectedLiqPriceEl.className = 'pnl-value negative';
+        }
+      }
+    } else {
+      if (estLiqSubtext) estLiqSubtext.style.display = 'none';
+      if (expectedLiqPriceEl) expectedLiqPriceEl.textContent = '-';
+    }
 
     // 更新期望幅度 Input 的 Label 提示
     const targetPercentLabel = document.getElementById('targetPercentLabel');
@@ -1572,6 +1691,31 @@ class Calculator {
       if (isFinite(dailyInput) && hasOpen) computeFromDaily();
       else if (isFinite(tpInput)) computeFromPrice();
       else if (isFinite(tpctInput)) computeFromPercent();
+    }
+
+    // 计算保证金与预期收益金额
+    const margin = parseFloat(document.getElementById('marginInput')?.value);
+    const pnlResultCard = document.getElementById('pnlResultCard');
+    const expectedPnlEl = document.getElementById('expectedPnlValue');
+    const expectedTotalEl = document.getElementById('expectedTotalValue');
+
+    if (pnlResultCard && expectedPnlEl && expectedTotalEl) {
+      if (isFinite(margin) && margin > 0 && isFinite(finalTargetRoe)) {
+        const pnl = margin * (finalTargetRoe / 100);
+        const total = margin + pnl;
+        const sign = pnl >= 0 ? '+' : '';
+        const colorClass = pnl > 0 ? 'positive' : (pnl < 0 ? 'negative' : 'neutral');
+
+        expectedPnlEl.textContent = `${sign}${pnl.toFixed(2)} USDT`;
+        expectedPnlEl.className = `pnl-value ${colorClass}`;
+
+        expectedTotalEl.textContent = `${total.toFixed(2)} USDT`;
+        expectedTotalEl.className = `pnl-value`;
+
+        pnlResultCard.style.display = 'block';
+      } else {
+        pnlResultCard.style.display = 'none';
+      }
     }
 
     this.hideMessage();

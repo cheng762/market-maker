@@ -96,8 +96,12 @@
     <div class="content">
       <div class="top-section">
         <div class="position-calculation">
-          <div class="section">
-            <h3>持仓计算</h3>
+          <!-- 第一部分：开仓设置 -->
+          <div class="section calc-sub-card">
+            <div class="card-header">
+              <span class="card-step-badge">1</span>
+              <h3>开仓设置</h3>
+            </div>
 
             <div class="form-grid">
               <div class="form-group full-width">
@@ -109,17 +113,44 @@
                 </div>
               </div>
 
+              <div class="form-group" id="leverageGroup" style="display: none;">
+                <label for="leverageInput">杠杆倍数 (x)</label>
+                <input type="number" id="leverageInput" min="1" max="125" value="1" placeholder="如: 10" />
+              </div>
+
               <div class="form-group">
                 <label for="holdPrice">持仓价格</label>
                 <div class="input-with-button">
-                  <input type="number" id="holdPrice" step="0.00000001" placeholder="输入您的持仓价格" />
+                  <input type="number" id="holdPrice" step="0.00000001" placeholder="输入持仓价格" />
                   <button type="button" id="syncPositionPrice" class="sync-btn api-feature-btn" title="同步持仓均价">同步</button>
                 </div>
               </div>
 
-              <div class="form-group" id="leverageGroup" style="display: none;">
-                <label for="leverageInput">杠杆倍数 (x)</label>
-                <input type="number" id="leverageInput" min="1" max="125" value="1" placeholder="如: 10" />
+              <div class="form-group">
+                <label for="holdVsOpenPercent">距开盘价幅度 (%)</label>
+                <input type="number" id="holdVsOpenPercent" step="0.01" placeholder="如: +2.50 或 -1.00" />
+                <div id="holdVsOpenDiffSubtext" class="input-subtext" style="display: none;"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="marginInput">保证金 / 投入本金 (USDT)</label>
+                <input type="number" id="marginInput" min="0" step="0.01" placeholder="可选填，如: 1000" />
+                <div id="estLiquidationSubtext" class="input-subtext" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第二部分：预期收益计算 -->
+          <div class="section calc-sub-card">
+            <div class="card-header">
+              <span class="card-step-badge">2</span>
+              <h3>预期收益计算</h3>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="targetPrice">期望点位（目标价格）</label>
+                <input type="number" id="targetPrice" step="0.01" placeholder="目标价格" />
               </div>
 
               <div class="form-group">
@@ -128,13 +159,25 @@
               </div>
 
               <div class="form-group">
-                <label for="targetPrice">期望点位（目标价格）</label>
-                <input type="number" id="targetPrice" step="0.01" placeholder="目标价格" />
-              </div>
-
-              <div class="form-group">
                 <label for="dailyExpectPercent">当日涨跌幅预期 (%)（相对开盘价）</label>
                 <input type="number" id="dailyExpectPercent" step="0.01" placeholder="如: 2.50 或 -1.00" />
+              </div>
+
+              <div class="form-group full-width" id="pnlResultCard" style="display: none;">
+                <div class="pnl-summary-box">
+                  <div class="pnl-item">
+                    <span class="pnl-label">预估强平爆仓价:</span>
+                    <strong id="expectedLiqPriceValue" class="pnl-value negative">-</strong>
+                  </div>
+                  <div class="pnl-item">
+                    <span class="pnl-label">预期收益金额:</span>
+                    <strong id="expectedPnlValue" class="pnl-value">+0.00 USDT</strong>
+                  </div>
+                  <div class="pnl-item">
+                    <span class="pnl-label">平仓预估总额:</span>
+                    <strong id="expectedTotalValue" class="pnl-value">0.00 USDT</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
