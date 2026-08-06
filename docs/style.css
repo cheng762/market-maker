@@ -93,20 +93,19 @@ body {
 
 /* 顶部信息栏 */
 .top-info-bar {
-  background: #f8f9fa;
-  border-bottom: 2px solid #e1e5e9;
-  padding: 16px 20px;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 14px 20px;
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 
 .symbol-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 200px;
+  gap: 8px;
 }
 
 .symbol-input-wrapper label {
@@ -117,12 +116,10 @@ body {
 }
 
 .symbol-input-wrapper input {
-  flex: 1;
-  min-width: 150px;
-  padding: 10px 12px;
-  border: 2px solid #e1e5e9;
+  padding: 6px 10px;
+  border: 1.5px solid #d1d5db;
   border-radius: 6px;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .symbol-input-wrapper input:focus {
@@ -130,37 +127,45 @@ body {
   border-color: #667eea;
 }
 
-/* 顶部价格信息 - 自动换行显示 */
+/* 顶部价格信息 - 选择币种下方第二排视窗 */
 .price-info-inline {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex: 1;
+  gap: 10px;
+  width: 100%;
   flex-wrap: wrap;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .price-info-inline .price-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0;
-  border: none;
+  padding: 4px 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .price-info-inline .price-item span {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #64748b;
   font-weight: 500;
   display: inline;
 }
 
 .price-info-inline .price-item strong {
-  font-size: 14px;
-  color: #1f2937;
-  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 700;
   display: inline;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* 持仓信息 - 与价格信息相同的布局 */
@@ -1453,4 +1458,339 @@ button:active {
 .mode-badge.short {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* 输入框未填写/无效时的标红提示样式 */
+input.input-error,
+select.input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* ==========================================================================
+   交易对选择器样式 (Pair Selector Styles)
+   ========================================================================== */
+.pair-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.pair-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 产品类型切换按钮 */
+.inst-type-toggle {
+  display: inline-flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.inst-type-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.inst-type-btn.active {
+  background: #667eea;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.inst-type-btn:hover:not(.active) {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+/* 下拉框与组合容器 */
+.select-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.select-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.pair-slash {
+  font-size: 16px;
+  font-weight: 700;
+  color: #9ca3af;
+}
+
+/* 自定义搜索下拉菜单包装 */
+.custom-select-wrapper {
+  position: relative;
+}
+
+.custom-select-wrapper input {
+  width: 130px;
+  padding: 6px 10px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #111827;
+  transition: border-color 0.2s ease;
+}
+
+.custom-select-wrapper input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.select-options-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 180px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-top: 4px;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.select-options-dropdown li {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s ease;
+}
+
+.select-options-dropdown li:hover,
+.select-options-dropdown li.selected {
+  background: #f0f4ff;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.quote-select {
+  padding: 6px 10px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+
+.quote-select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.inst-id-label {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* 热门币种快捷便签 Bar - 单行紧凑显示 */
+.hot-pills-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  padding-top: 0;
+  border-top: none;
+  margin-left: 4px;
+}
+
+.hot-pill-label {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hot-pill {
+  border: none;
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.hot-pill:hover {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.hot-pill.active {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   现代历史数据汇总卡片样式 (Modern History Summary Cards)
+   ========================================================================== */
+.modern-summary-wrapper {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.modern-summary-wrapper .summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modern-summary-wrapper .header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modern-summary-wrapper .summary-badge {
+  background: #667eea;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.modern-summary-wrapper .summary-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modern-summary-wrapper .summary-period {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.modern-summary-wrapper .header-right {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modern-summary-wrapper .winrate-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.modern-summary-wrapper .winrate-value {
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card.highlight.pos-card {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.stat-card.highlight.neg-card {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.stat-card .stat-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.stat-card .stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.stat-card .stat-value-group {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-card .stat-divider {
+  color: #cbd5e1;
+}
+
+.stat-card .stat-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
 }

@@ -24,9 +24,52 @@
     </div>
 
     <div class="top-info-bar">
-      <div class="symbol-input-wrapper">
-        <label for="symbol">币种</label>
-        <input type="text" id="symbol" value="BTC-USDT" placeholder="如: BTC-USDT" />
+      <div class="pair-selector-container">
+        <div class="pair-selector-row">
+          <!-- 产品类型切换 -->
+          <div class="inst-type-toggle" id="instTypeToggle">
+            <button type="button" class="inst-type-btn active" data-inst-type="SPOT">现货</button>
+            <button type="button" class="inst-type-btn" data-inst-type="SWAP">永续合约</button>
+          </div>
+
+          <!-- 基础币选择器 (带搜索) -->
+          <div class="select-group">
+            <label for="baseCcyInput">基础币</label>
+            <div class="custom-select-wrapper" id="baseCcyWrapper">
+              <input type="text" id="baseCcyInput" value="BTC" placeholder="搜索/输入(如BTC)" autocomplete="off" />
+              <ul class="select-options-dropdown" id="baseCcyList" style="display:none;"></ul>
+            </div>
+          </div>
+
+          <span class="pair-slash">/</span>
+
+          <!-- 计价/结算币选择器 -->
+          <div class="select-group">
+            <label for="quoteCcySelect">计价币</label>
+            <select id="quoteCcySelect" class="quote-select">
+              <option value="USDT">USDT</option>
+              <option value="USDC">USDC</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <!-- OKX代码预览与兼容输入框 -->
+          <div class="symbol-input-wrapper">
+            <label for="symbol" class="inst-id-label">OKX代码</label>
+            <input type="text" id="symbol" value="BTC-USDT" placeholder="如: BTC-USDT" title="生成的 OKX instId，亦可手动编辑" />
+          </div>
+
+          <!-- 热门币种快捷便签 Tag Pills (同一行显示) -->
+          <div class="hot-pills-bar" id="hotPillsBar">
+            <span class="hot-pill-label">热门:</span>
+            <button type="button" class="hot-pill active" data-base="BTC">BTC</button>
+            <button type="button" class="hot-pill" data-base="ETH">ETH</button>
+            <button type="button" class="hot-pill" data-base="SOL">SOL</button>
+            <button type="button" class="hot-pill" data-base="DOGE">DOGE</button>
+            <button type="button" class="hot-pill" data-base="XRP">XRP</button>
+            <button type="button" class="hot-pill" data-base="PEPE">PEPE</button>
+          </div>
+        </div>
       </div>
 
       <div id="priceInfo" style="display:none;" class="price-info-inline">

@@ -21,12 +21,32 @@ class Calculator {
     this.currentFundingRate = null; // 当前资金费率
     this.apiConfig = this.loadApiConfig(); // API配置
     this.positionData = null; // 持仓数据
+    this.currentInstType = 'SPOT'; // 'SPOT' | 'SWAP'
+    this.instruments = {
+      SPOT: {
+        'BTC': ['USDT', 'USDC', 'USD'],
+        'ETH': ['USDT', 'USDC', 'USD'],
+        'SOL': ['USDT', 'USDC'],
+        'DOGE': ['USDT', 'USDC'],
+        'XRP': ['USDT', 'USDC'],
+        'PEPE': ['USDT']
+      },
+      SWAP: {
+        'BTC': ['USDT', 'USDC', 'USD'],
+        'ETH': ['USDT', 'USDC', 'USD'],
+        'SOL': ['USDT', 'USDC', 'USD'],
+        'DOGE': ['USDT', 'USDC'],
+        'XRP': ['USDT', 'USDC'],
+        'PEPE': ['USDT']
+      }
+    };
     this.init();
   }
 
   init() {
     this.bindEvents();
     this.loadCachedSymbol(); // 加载缓存的币种
+    this.initPairSelector(); // 初始化交易对双列选择器与 OKX 列表
     this.updateApiConfigUI(); // 更新API配置UI状态
     this.updateApiStatusUI(); // 更新API功能按钮状态
 
@@ -147,7 +167,11 @@ class Calculator {
     });
 
     // 持仓价输入
-    document.getElementById('holdPrice').addEventListener('input', () => {
+    document.getElementById('holdPrice').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      if (isFinite(val) && val > 0) {
+        e.target.classList.remove('input-error');
+      }
       // 如果有当日涨跌幅预期，持仓价变化时也实时联动
       if (document.getElementById('dailyExpectPercent').value.trim() !== '') {
         this.lastModified = 'daily';
@@ -1054,41 +1078,65 @@ class Calculator {
     const maxDaily = Math.max(...changes);
     const minDaily = Math.min(...changes);
 
-    // 显示汇总信息
+    const winRate = historyData.length > 0 ? (positiveCount / historyData.length) * 100 : 0;
+
+    // 显示现代高质感汇总统计卡片
     const summaryEl = document.getElementById('historySummary');
     summaryEl.innerHTML = `
-      <div class="summary-info">
-        <h4>统计汇总（${historyData.length}天）</h4>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span>起始价格:</span>
-            <strong>${firstOpen.toFixed(this.currentPrecision)}</strong>
+      <div class="modern-summary-wrapper">
+        <div class="summary-header">
+          <div class="header-left">
+            <span class="summary-badge">指标统计</span>
+            <span class="summary-title">区间数据分析汇总</span>
+            <span class="summary-period">(${historyData.length}天交易日)</span>
           </div>
-          <div class="summary-item">
-            <span>结束价格:</span>
-            <strong>${lastClose.toFixed(this.currentPrecision)}</strong>
+          <div class="header-right">
+            <span class="winrate-label">上涨胜率:</span>
+            <span class="winrate-value ${winRate >= 50 ? 'positive' : 'negative'}">${winRate.toFixed(1)}%</span>
           </div>
-          <div class="summary-item">
-            <span>总涨跌幅:</span>
-            <strong class="${totalChange >= 0 ? 'positive' : 'negative'}">
+        </div>
+
+        <div class="summary-cards-grid">
+          <div class="stat-card">
+            <span class="stat-label">起始价格</span>
+            <strong class="stat-value">${firstOpen.toFixed(this.currentPrecision)}</strong>
+            <span class="stat-sub">Period Open</span>
+          </div>
+
+          <div class="stat-card">
+            <span class="stat-label">最新/收盘价</span>
+            <strong class="stat-value">${lastClose.toFixed(this.currentPrecision)}</strong>
+            <span class="stat-sub">Period Close</span>
+          </div>
+
+          <div class="stat-card highlight ${totalChange >= 0 ? 'pos-card' : 'neg-card'}">
+            <span class="stat-label">区间总涨跌幅</span>
+            <strong class="stat-value ${totalChange >= 0 ? 'positive' : 'negative'}">
               ${totalChange >= 0 ? '+' : ''}${totalChange.toFixed(2)}%
             </strong>
+            <span class="stat-sub">${totalChange >= 0 ? '看多总收益' : '区间下行'}</span>
           </div>
-          <div class="summary-item">
-            <span>上涨天数:</span>
-            <strong class="positive">${positiveCount}天</strong>
+
+          <div class="stat-card">
+            <span class="stat-label">涨跌交易日</span>
+            <div class="stat-value-group">
+              <span class="positive">${positiveCount} 涨</span>
+              <span class="stat-divider">/</span>
+              <span class="negative">${negativeCount} 跌</span>
+            </div>
+            <span class="stat-sub">胜率 ${winRate.toFixed(0)}%</span>
           </div>
-          <div class="summary-item">
-            <span>下跌天数:</span>
-            <strong class="negative">${negativeCount}天</strong>
+
+          <div class="stat-card">
+            <span class="stat-label">单日最大涨幅</span>
+            <strong class="stat-value positive">+${maxDaily.toFixed(2)}%</strong>
+            <span class="stat-sub">单日最高上涨动能</span>
           </div>
-          <div class="summary-item">
-            <span>最大单日涨幅:</span>
-            <strong class="positive">+${maxDaily.toFixed(2)}%</strong>
-          </div>
-          <div class="summary-item">
-            <span>最大单日跌幅:</span>
-            <strong class="negative">${minDaily.toFixed(2)}%</strong>
+
+          <div class="stat-card">
+            <span class="stat-label">单日最大跌幅</span>
+            <strong class="stat-value negative">${minDaily.toFixed(2)}%</strong>
+            <span class="stat-sub">单日最大回撤</span>
           </div>
         </div>
       </div>
@@ -1397,7 +1445,8 @@ class Calculator {
   }
 
   calculate() {
-    const holdPrice = parseFloat(document.getElementById('holdPrice').value);
+    const holdPriceEl = document.getElementById('holdPrice');
+    const holdPrice = parseFloat(holdPriceEl.value);
     const {
       openPrice,
       currentPrice
@@ -1408,8 +1457,10 @@ class Calculator {
       return;
     }
     if (!isFinite(holdPrice) || holdPrice <= 0) {
-      this.showMessage('请输入有效的持仓价格', 'error');
+      holdPriceEl.classList.add('input-error');
       return;
+    } else {
+      holdPriceEl.classList.remove('input-error');
     }
 
     const isContract = this.positionType !== 'spot';
@@ -1500,6 +1551,284 @@ class Calculator {
 
   hideMessage() {
     document.getElementById('message').style.display = 'none';
+  }
+
+  /* ==========================================================================
+     交易对选择器 (Pair Selector) 核心逻辑
+     ========================================================================== */
+  initPairSelector() {
+    this.loadOKXInstrumentsCache();
+    this.fetchOKXInstrumentsAsync();
+
+    // 1. 同步隐藏/只读 input#symbol 的值到双列 UI
+    this.syncSymbolToPairSelector();
+
+    // 2. 产品类型 (SPOT 现货 vs SWAP 永续合约) 切换监听
+    const instTypeBtns = document.querySelectorAll('.inst-type-btn');
+    instTypeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        instTypeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.currentInstType = btn.dataset.instType;
+
+        // 智能联动持仓计算里的类型选项
+        if (this.currentInstType === 'SPOT') {
+          const spotBtn = document.querySelector('.pos-type-btn[data-type="spot"]');
+          if (spotBtn) spotBtn.click();
+        } else if (this.currentInstType === 'SWAP' && this.positionType === 'spot') {
+          const longBtn = document.querySelector('.pos-type-btn[data-type="long"]');
+          if (longBtn) longBtn.click();
+        }
+
+        // 重新更新下拉框与关联价格
+        this.updateQuoteCcyOptions();
+        this.updateSymbolFromPairSelector();
+      });
+    });
+
+    // 3. 基础币搜索输入框事件
+    const baseInput = document.getElementById('baseCcyInput');
+    const baseList = document.getElementById('baseCcyList');
+
+    if (baseInput && baseList) {
+      baseInput.addEventListener('focus', () => {
+        this.renderBaseCcyDropdown(baseInput.value.trim());
+      });
+
+      baseInput.addEventListener('input', () => {
+        this.renderBaseCcyDropdown(baseInput.value.trim());
+      });
+
+      baseInput.addEventListener('change', () => {
+        let val = baseInput.value.trim().toUpperCase();
+        baseInput.value = val;
+        this.updateQuoteCcyOptions();
+        this.updateSymbolFromPairSelector();
+        this.updateHotPillsActiveState(val);
+      });
+
+      // 点击外部关闭下拉菜单
+      document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('baseCcyWrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+          baseList.style.display = 'none';
+        }
+      });
+    }
+
+    // 4. 计价币下拉框事件
+    const quoteSelect = document.getElementById('quoteCcySelect');
+    if (quoteSelect) {
+      quoteSelect.addEventListener('change', () => {
+        this.updateSymbolFromPairSelector();
+      });
+    }
+
+    // 5. 热门币种 Tag Pills 点击事件
+    const hotPills = document.querySelectorAll('.hot-pill');
+    hotPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const base = pill.dataset.base;
+        if (baseInput) baseInput.value = base;
+        this.updateHotPillsActiveState(base);
+        this.updateQuoteCcyOptions();
+        this.updateSymbolFromPairSelector();
+      });
+    });
+  }
+
+  // 将现有 OKX instId (如 BTC-USDT 或 BTC-USDT-SWAP) 反解析并更新至 Selector UI
+  syncSymbolToPairSelector() {
+    const rawSymbol = document.getElementById('symbol').value.trim() || 'BTC-USDT';
+    const parts = rawSymbol.split('-');
+    let base = parts[0] ? parts[0].toUpperCase() : 'BTC';
+    let quote = parts[1] ? parts[1].toUpperCase() : 'USDT';
+    let isSwap = rawSymbol.toUpperCase().endsWith('-SWAP');
+
+    this.currentInstType = isSwap ? 'SWAP' : 'SPOT';
+
+    // 更新产品类型 Toggle 样式
+    const instTypeBtns = document.querySelectorAll('.inst-type-btn');
+    instTypeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.instType === this.currentInstType);
+    });
+
+    // 更新 Input 框
+    const baseInput = document.getElementById('baseCcyInput');
+    if (baseInput) baseInput.value = base;
+
+    // 更新 计价币下拉框
+    this.updateQuoteCcyOptions(quote);
+
+    // 高亮 Hot Pill
+    this.updateHotPillsActiveState(base);
+  }
+
+  // 根据 UI 选择重新合成 OKX instId 填写入 #symbol 框，并触发数据查询
+  updateSymbolFromPairSelector() {
+    const baseInput = document.getElementById('baseCcyInput');
+    const quoteSelect = document.getElementById('quoteCcySelect');
+
+    let base = baseInput ? baseInput.value.trim().toUpperCase() : 'BTC';
+    let quote = quoteSelect ? quoteSelect.value : 'USDT';
+
+    if (!base) base = 'BTC';
+    if (!quote) quote = 'USDT';
+
+    let instId = `${base}-${quote}`;
+    if (this.currentInstType === 'SWAP') {
+      instId += '-SWAP';
+    }
+
+    const symbolInput = document.getElementById('symbol');
+    if (symbolInput) {
+      symbolInput.value = instId;
+      this.saveSymbolCache(instId);
+
+      // 清除防抖定时器并立即触发数据刷新
+      if (this.symbolInputTimeout) {
+        clearTimeout(this.symbolInputTimeout);
+      }
+      this.fetchPriceData();
+    }
+  }
+
+  // 动态高亮热门 Pill 标签
+  updateHotPillsActiveState(activeBase) {
+    const hotPills = document.querySelectorAll('.hot-pill');
+    hotPills.forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.base === activeBase.toUpperCase());
+    });
+  }
+
+  // 渲染基础币下拉搜索列表
+  renderBaseCcyDropdown(query = '') {
+    const baseList = document.getElementById('baseCcyList');
+    if (!baseList) return;
+
+    const filter = query.toUpperCase();
+    const instMap = this.instruments[this.currentInstType] || {};
+    let bases = Object.keys(instMap);
+
+    if (bases.length === 0) {
+      bases = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'PEPE', 'ADA', 'AVAX', 'LINK', 'DOT', 'BCH', 'LTC'];
+    }
+
+    if (filter) {
+      bases = bases.filter(b => b.includes(filter));
+    }
+
+    // 截取前 50 个显示
+    const displayBases = bases.slice(0, 50);
+
+    if (displayBases.length === 0) {
+      baseList.innerHTML = `<li style="color:#9ca3af;cursor:default;">未找到 "${query}"</li>`;
+    } else {
+      baseList.innerHTML = displayBases.map(b => `<li data-base="${b}">${b}</li>`).join('');
+
+      baseList.querySelectorAll('li[data-base]').forEach(li => {
+        li.addEventListener('click', () => {
+          const selectedBase = li.dataset.base;
+          const baseInput = document.getElementById('baseCcyInput');
+          if (baseInput) baseInput.value = selectedBase;
+          baseList.style.display = 'none';
+          this.updateHotPillsActiveState(selectedBase);
+          this.updateQuoteCcyOptions();
+          this.updateSymbolFromPairSelector();
+        });
+      });
+    }
+
+    baseList.style.display = 'block';
+  }
+
+  // 动态更新计价币下拉列表
+  updateQuoteCcyOptions(preferredQuote = '') {
+    const baseInput = document.getElementById('baseCcyInput');
+    const quoteSelect = document.getElementById('quoteCcySelect');
+    if (!baseInput || !quoteSelect) return;
+
+    const base = baseInput.value.trim().toUpperCase();
+    const instMap = this.instruments[this.currentInstType] || {};
+    let availableQuotes = instMap[base];
+
+    if (!availableQuotes || availableQuotes.length === 0) {
+      availableQuotes = ['USDT', 'USDC', 'USD'];
+    }
+
+    const currentSelected = preferredQuote || quoteSelect.value || 'USDT';
+
+    quoteSelect.innerHTML = availableQuotes.map(q =>
+      `<option value="${q}" ${q === currentSelected ? 'selected' : ''}>${q}</option>`
+    ).join('');
+
+    // 如果首选计价币不在可用列表中，默认选第一个
+    if (!availableQuotes.includes(quoteSelect.value)) {
+      quoteSelect.value = availableQuotes[0] || 'USDT';
+    }
+  }
+
+  // 本地缓存加载全量 OKX 交易对
+  loadOKXInstrumentsCache() {
+    const cached = localStorage.getItem('okx_instruments_cache');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && (Date.now() - parsed.timestamp < 24 * 3600 * 1000) && parsed.data) {
+          this.instruments = parsed.data;
+        }
+      } catch (e) {
+        console.warn('Failed to parse cached instruments:', e);
+      }
+    }
+  }
+
+  // 异步获取 OKX 全量上线交易对并缓存
+  async fetchOKXInstrumentsAsync() {
+    try {
+      const [spotResp, swapResp] = await Promise.all([
+        fetch('https://www.okx.com/api/v5/public/instruments?instType=SPOT'),
+        fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP')
+      ]);
+
+      const spotData = await spotResp.json();
+      const swapData = await swapResp.json();
+
+      const newInstruments = { SPOT: {}, SWAP: {} };
+
+      if (spotData.code === '0' && Array.isArray(spotData.data)) {
+        spotData.data.forEach(item => {
+          const base = item.baseCcy;
+          const quote = item.quoteCcy;
+          if (base && quote) {
+            if (!newInstruments.SPOT[base]) newInstruments.SPOT[base] = [];
+            if (!newInstruments.SPOT[base].includes(quote)) newInstruments.SPOT[base].push(quote);
+          }
+        });
+      }
+
+      if (swapData.code === '0' && Array.isArray(swapData.data)) {
+        swapData.data.forEach(item => {
+          const base = item.ctValCcy || item.settleCcy || item.instId.split('-')[0];
+          const quote = item.settleCcy || item.instId.split('-')[1];
+          if (base && quote) {
+            if (!newInstruments.SWAP[base]) newInstruments.SWAP[base] = [];
+            if (!newInstruments.SWAP[base].includes(quote)) newInstruments.SWAP[base].push(quote);
+          }
+        });
+      }
+
+      if (Object.keys(newInstruments.SPOT).length > 0 || Object.keys(newInstruments.SWAP).length > 0) {
+        this.instruments = newInstruments;
+        localStorage.setItem('okx_instruments_cache', JSON.stringify({
+          timestamp: Date.now(),
+          data: newInstruments
+        }));
+        this.updateQuoteCcyOptions();
+      }
+    } catch (e) {
+      console.warn('OKX全量交易对异步获取非致命失败，使用静态兜底:', e);
+    }
   }
 }
 
