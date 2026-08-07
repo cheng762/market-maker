@@ -7,6 +7,9 @@ class Calculator {
       currentPrice: null,
       symbol: 'BTC-USDT'
     };
+    this.recentOpenPrices = []; // 最近7天开盘价列表 [{index, dateStr, tag, openPrice}]
+    this.selectedOpenPriceIndex = 0; // 开仓设置默认选中当天的开盘价 (index 0)
+    this.selectedRiskOpenPriceIndex = 0; // 风险提示栏独立选中当天的开盘价 (index 0)
     this.positionType = 'spot'; // 'spot' | 'long' | 'short'
     this.leverage = 1;
     this.lastModified = null; // 'percent' | 'price' | 'daily'
@@ -184,9 +187,53 @@ class Calculator {
       this.calculate();
     });
 
+    // 开仓设置中的开盘价基准选择切换 (独立控制开仓设置)
+    document.getElementById('openPriceSelect')?.addEventListener('change', (e) => {
+      this.selectedOpenPriceIndex = parseInt(e.target.value) || 0;
+      this.updateDailyExpectLabel();
+      const openPrice = this.getSelectedOpenPrice();
+
+      const holdPriceEl = document.getElementById('holdPrice');
+      const holdVsOpenPercentEl = document.getElementById('holdVsOpenPercent');
+      const holdPrice = parseFloat(holdPriceEl.value);
+
+      if (document.activeElement === holdVsOpenPercentEl) {
+        const pct = parseFloat(holdVsOpenPercentEl.value);
+        if (isFinite(openPrice) && openPrice > 0 && isFinite(pct)) {
+          const calculatedHoldPrice = openPrice * (1 + pct / 100);
+          holdPriceEl.value = calculatedHoldPrice.toFixed(this.currentPrecision || 2);
+        }
+      } else {
+        if (isFinite(holdPrice) && holdPrice > 0 && isFinite(openPrice) && openPrice > 0) {
+          const pct = ((holdPrice - openPrice) / openPrice) * 100;
+          holdVsOpenPercentEl.value = pct.toFixed(2);
+        }
+      }
+
+      if (document.getElementById('dailyExpectPercent').value.trim() !== '') {
+        this.lastModified = 'daily';
+        this.updateFromDailyExpected();
+      }
+
+      this.calculate();
+    });
+
+    // 风险提示模块中的开盘价基准选择切换 (独立控制风险提示与点位推演)
+    document.getElementById('riskOpenPriceSelect')?.addEventListener('change', (e) => {
+      this.selectedRiskOpenPriceIndex = parseInt(e.target.value) || 0;
+
+      if (document.getElementById('riskCalcPercent')?.value.trim() !== '') {
+        this.updateRiskCalcFromPercent();
+      } else if (document.getElementById('riskCalcPrice')?.value.trim() !== '') {
+        this.updateRiskCalcFromPrice();
+      } else {
+        this.updateRiskComparison();
+      }
+    });
+
     // 距开盘价幅度 (%) 输入 -> 倒推持仓价格
     document.getElementById('holdVsOpenPercent')?.addEventListener('input', (e) => {
-      const openPrice = this.currentData.openPrice;
+      const openPrice = this.getSelectedOpenPrice();
       const pct = parseFloat(e.target.value);
       const holdPriceEl = document.getElementById('holdPrice');
       if (isFinite(openPrice) && openPrice > 0 && isFinite(pct)) {
@@ -206,6 +253,16 @@ class Calculator {
     // 保证金 / 投入本金 (USDT) 输入
     document.getElementById('marginInput')?.addEventListener('input', () => {
       this.calculate();
+    });
+
+    // 风险提示模块：相对开盘涨跌幅 (%) 输入 -> 推算目标点位
+    document.getElementById('riskCalcPercent')?.addEventListener('input', () => {
+      this.updateRiskCalcFromPercent();
+    });
+
+    // 风险提示模块：推算目标点位 (USDT) 输入 -> 反推相对开盘涨跌幅 (%)
+    document.getElementById('riskCalcPrice')?.addEventListener('input', () => {
+      this.updateRiskCalcFromPrice();
     });
 
     // 期望幅度（相对持仓）
@@ -255,6 +312,9 @@ class Calculator {
       currentPrice: null,
       symbol: ''
     };
+    this.recentOpenPrices = [];
+    this.selectedOpenPriceIndex = 0;
+    this.updateOpenPriceSelectUI();
     this.currentFundingRate = null;
     this.positionData = null;
     document.getElementById('priceInfo').style.display = 'none';
@@ -719,8 +779,8 @@ class Calculator {
     this.showMessage('正在获取价格数据...', 'loading');
 
     try {
-      // 获取 1D K 线（开盘价/最高/最低）
-      let klineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1D&limit=1`);
+      // 获取 1D K 线（包含最近 7 天开盘价/最高/最低）
+      let klineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${symbol}&bar=1D&limit=7`);
       let klineData = await klineResp.json();
 
       // 获取最新 ticker（当前价）
@@ -732,7 +792,7 @@ class Calculator {
       // 如果第一遍获取失败（例如美股合约输入的 SKHYNIX-USDT 在现货不存在），自动尝试 -SWAP
       if ((klineData.code !== '0' || tickerData.code !== '0' || !klineData.data?.length || !tickerData.data?.length) && !symbol.toUpperCase().endsWith('-SWAP')) {
         const fallbackSymbol = `${symbol}-SWAP`;
-        const fbKlineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${fallbackSymbol}&bar=1D&limit=1`);
+        const fbKlineResp = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${fallbackSymbol}&bar=1D&limit=7`);
         const fbKlineData = await fbKlineResp.json();
         const fbTickerResp = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${fallbackSymbol}`);
         const fbTickerData = await fbTickerResp.json();
@@ -753,8 +813,9 @@ class Calculator {
         throw new Error('获取价格数据失败，请检查币种格式或稍后重试');
       }
 
-      const k = klineData.data[0];
-      const openPrice = parseFloat(k[1]); // 开盘
+      const klines = klineData.data;
+      const k = klines[0];
+      const openPrice = parseFloat(k[1]); // 当天开盘
       const highPrice = parseFloat(k[2]); // 当日高
       const lowPrice = parseFloat(k[3]); // 当日低
       const currentPrice = parseFloat(tickerData.data[0].last);
@@ -769,6 +830,29 @@ class Calculator {
 
       // 自动设置价格精度
       this.autoSetPrecision([openPrice, highPrice, lowPrice, currentPrice]);
+
+      // 构建最近7天开盘价列表 (OKX返回倒序: index 0 为今天)
+      this.recentOpenPrices = klines.slice(0, 7).map((candle, idx) => {
+        const ts = parseInt(candle[0]);
+        const open = parseFloat(candle[1]);
+        const dateObj = new Date(ts);
+        const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const d = dateObj.getDate().toString().padStart(2, '0');
+        const dateStr = `${m}-${d}`;
+        let tag = '';
+        if (idx === 0) tag = '当天';
+        else if (idx === 1) tag = '昨天';
+        else if (idx === 2) tag = '前天';
+        else tag = `${idx}天前`;
+        return {
+          index: idx,
+          dateStr,
+          tag,
+          openPrice: open
+        };
+      });
+
+      this.updateOpenPriceSelectUI();
 
       // 获取资金费率
       this.currentFundingRate = await this.fetchFundingRate(symbol);
@@ -1134,8 +1218,14 @@ class Calculator {
     const changes = historyData.map(d => parseFloat(d.dailyChange));
     const positiveCount = changes.filter(c => c > 0).length;
     const negativeCount = changes.filter(c => c < 0).length;
-    const maxDaily = Math.max(...changes);
-    const minDaily = Math.min(...changes);
+
+    // 单日最大涨幅：开盘价与最高价之间的最大涨幅
+    const highChanges = historyData.map(d => parseFloat(d.highChangePercent));
+    const maxDailyRise = Math.max(...highChanges);
+
+    // 单日最大跌幅：开盘价与最低价之间的最大跌幅
+    const lowChanges = historyData.map(d => parseFloat(d.lowChangePercent));
+    const maxDailyFall = Math.min(...lowChanges);
 
     const winRate = historyData.length > 0 ? (positiveCount / historyData.length) * 100 : 0;
 
@@ -1188,14 +1278,14 @@ class Calculator {
 
           <div class="stat-card">
             <span class="stat-label">单日最大涨幅</span>
-            <strong class="stat-value positive">+${maxDaily.toFixed(2)}%</strong>
-            <span class="stat-sub">单日最高上涨动能</span>
+            <strong class="stat-value positive">${maxDailyRise >= 0 ? '+' : ''}${maxDailyRise.toFixed(2)}%</strong>
+            <span class="stat-sub">开盘至最高点上冲</span>
           </div>
 
           <div class="stat-card">
             <span class="stat-label">单日最大跌幅</span>
-            <strong class="stat-value negative">${minDaily.toFixed(2)}%</strong>
-            <span class="stat-sub">单日最大回撤</span>
+            <strong class="stat-value negative">${maxDailyFall.toFixed(2)}%</strong>
+            <span class="stat-sub">开盘至最低点下探</span>
           </div>
         </div>
       </div>
@@ -1468,9 +1558,78 @@ class Calculator {
     }
   }
 
+  // 获取开仓设置当前选中的基准开盘价 (默认 index 0: 当天开盘价)
+  getSelectedOpenPrice() {
+    if (this.recentOpenPrices && this.recentOpenPrices.length > this.selectedOpenPriceIndex) {
+      return this.recentOpenPrices[this.selectedOpenPriceIndex].openPrice;
+    }
+    return this.currentData.openPrice;
+  }
+
+  // 获取风险提示栏独立选中的基准开盘价
+  getSelectedRiskOpenPrice() {
+    if (this.recentOpenPrices && this.recentOpenPrices.length > this.selectedRiskOpenPriceIndex) {
+      return this.recentOpenPrices[this.selectedRiskOpenPriceIndex].openPrice;
+    }
+    return this.currentData.openPrice;
+  }
+
+  // 更新开盘价选择下拉框 UI（开仓设置与风险提示栏独立保持选中状态，选中后仅显示日期，极致紧凑）
+  updateOpenPriceSelectUI() {
+    const selectEl1 = document.getElementById('openPriceSelect');
+    const selectEl2 = document.getElementById('riskOpenPriceSelect');
+
+    const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+
+    const buildOptions = (selectEl, selectedIndex) => {
+      if (!selectEl) return;
+      selectEl.innerHTML = '';
+      if (!this.recentOpenPrices || this.recentOpenPrices.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '0';
+        opt.textContent = '当天';
+        selectEl.appendChild(opt);
+      } else {
+        this.recentOpenPrices.forEach((item) => {
+          const opt = document.createElement('option');
+          opt.value = item.index;
+          const formattedPrice = item.openPrice.toFixed(precision);
+          const tagText = item.index === 0 ? ' (当天)' : (item.index === 1 ? ' (昨天)' : (item.index === 2 ? ' (前天)' : ''));
+          opt.textContent = `${item.dateStr}${tagText}`;
+          opt.title = `开盘价: ${formattedPrice}`;
+          selectEl.appendChild(opt);
+        });
+        const validIdx = selectedIndex < this.recentOpenPrices.length ? selectedIndex : 0;
+        selectEl.value = validIdx;
+        const currentItem = this.recentOpenPrices[validIdx];
+        if (currentItem) {
+          const formattedPrice = currentItem.openPrice.toFixed(precision);
+          selectEl.title = `基准开盘价 (${currentItem.dateStr}): ${formattedPrice}`;
+        }
+      }
+    };
+
+    buildOptions(selectEl1, this.selectedOpenPriceIndex);
+    buildOptions(selectEl2, this.selectedRiskOpenPriceIndex);
+
+    this.updateDailyExpectLabel();
+  }
+
+  // 更新当日涨跌幅预期 Label 的提示文案
+  updateDailyExpectLabel() {
+    const labelEl = document.getElementById('dailyExpectPercentLabel');
+    if (!labelEl) return;
+    let tag = '开盘价';
+    if (this.recentOpenPrices && this.recentOpenPrices[this.selectedOpenPriceIndex]) {
+      const item = this.recentOpenPrices[this.selectedOpenPriceIndex];
+      tag = `${item.tag}(${item.dateStr})开盘价`;
+    }
+    labelEl.textContent = `当日涨跌幅预期 (%)（相对${tag}）`;
+  }
+
   // 当日涨跌幅预期：基于开盘价计算目标价，并联动持仓幅度
   updateFromDailyExpected() {
-    const openPrice = this.currentData.openPrice;
+    const openPrice = this.getSelectedOpenPrice();
     const holdPrice = parseFloat(document.getElementById('holdPrice').value);
     const dailyExpect = parseFloat(document.getElementById('dailyExpectPercent').value);
     const isContract = this.positionType !== 'spot';
@@ -1496,7 +1655,7 @@ class Calculator {
 
   // 反推当日涨跌幅预期（当有开盘价与目标价时）
   updateDailyExpectFromTarget() {
-    const openPrice = this.currentData.openPrice;
+    const openPrice = this.getSelectedOpenPrice();
     const targetPrice = parseFloat(document.getElementById('targetPrice').value);
     if (!isFinite(openPrice) || !isFinite(targetPrice) || openPrice === 0) return;
     const dailyExpect = ((targetPrice - openPrice) / openPrice) * 100;
@@ -1548,7 +1707,12 @@ class Calculator {
       if (holdVsOpenDiffSubtext) {
         const formattedDiff = `${sign}${diff.toFixed(precision)}`;
         const formattedOpen = openPrice.toFixed(precision);
-        holdVsOpenDiffSubtext.innerHTML = `较开盘(${formattedOpen})价差: <span class="${colorClass}">${formattedDiff}</span>`;
+        let selectedTag = '开盘';
+        if (this.recentOpenPrices && this.recentOpenPrices[this.selectedOpenPriceIndex]) {
+          const item = this.recentOpenPrices[this.selectedOpenPriceIndex];
+          selectedTag = `${item.tag}(${item.dateStr})`;
+        }
+        holdVsOpenDiffSubtext.innerHTML = `较 ${selectedTag} [${formattedOpen}] 价差: <span class="${colorClass}">${formattedDiff}</span> (${sign}${pct.toFixed(2)}%)`;
         holdVsOpenDiffSubtext.style.display = 'block';
       }
     } else {
@@ -1562,16 +1726,117 @@ class Calculator {
     }
   }
 
+  // 从相对开盘涨跌幅 (%) 计算推算目标点位，并更新与持仓价对比 (使用风险提示专用的基准开盘价)
+  updateRiskCalcFromPercent() {
+    const openPrice = this.getSelectedRiskOpenPrice();
+    const pctInput = document.getElementById('riskCalcPercent');
+    const priceInput = document.getElementById('riskCalcPrice');
+    if (!pctInput || !priceInput) return;
+
+    const pct = parseFloat(pctInput.value);
+    if (isFinite(openPrice) && openPrice > 0 && isFinite(pct)) {
+      const calculatedPrice = openPrice * (1 + pct / 100);
+      priceInput.value = calculatedPrice.toFixed(this.currentPrecision || 2);
+    } else if (!pctInput.value) {
+      priceInput.value = '';
+    }
+
+    this.updateRiskComparison();
+  }
+
+  // 从推算目标点位 (USDT) 计算相对开盘涨跌幅 (%)，并更新与持仓价对比 (使用风险提示专用的基准开盘价)
+  updateRiskCalcFromPrice() {
+    const openPrice = this.getSelectedRiskOpenPrice();
+    const pctInput = document.getElementById('riskCalcPercent');
+    const priceInput = document.getElementById('riskCalcPrice');
+    if (!pctInput || !priceInput) return;
+
+    const price = parseFloat(priceInput.value);
+    if (isFinite(openPrice) && openPrice > 0 && isFinite(price)) {
+      const calculatedPct = ((price - openPrice) / openPrice) * 100;
+      pctInput.value = calculatedPct.toFixed(2);
+    } else if (!priceInput.value) {
+      pctInput.value = '';
+    }
+
+    this.updateRiskComparison();
+  }
+
+  // 更新风险提示面板：比较目标点位与当前持仓价格 (holdPrice)
+  updateRiskComparison() {
+    const openPrice = this.getSelectedRiskOpenPrice();
+    const precision = (this.currentPrecision && this.currentPrecision > 0) ? this.currentPrecision : 2;
+
+    const holdPrice = parseFloat(document.getElementById('holdPrice')?.value);
+    const targetPrice = parseFloat(document.getElementById('riskCalcPrice')?.value);
+    const compBox = document.getElementById('riskComparisonBox');
+    const diffTextEl = document.getElementById('riskHoldDiffText');
+    const alertSubtextEl = document.getElementById('riskAlertSubtext');
+
+    if (!compBox || !diffTextEl) return;
+
+    if (isFinite(holdPrice) && holdPrice > 0 && isFinite(targetPrice) && targetPrice > 0) {
+      const diff = targetPrice - holdPrice;
+      const pctFromHold = ((targetPrice - holdPrice) / holdPrice) * 100;
+      const sign = diff >= 0 ? '+' : '';
+      const colorClass = diff > 0 ? 'positive' : (diff < 0 ? 'negative' : 'neutral');
+      const actionText = diff > 0 ? '上涨' : (diff < 0 ? '下跌' : '持平');
+
+      diffTextEl.className = `comparison-val ${colorClass}`;
+      diffTextEl.innerHTML = `需相对持仓价 (${holdPrice.toFixed(precision)}) ${actionText} <strong class="${colorClass}">${sign}${diff.toFixed(precision)} USDT (${sign}${pctFromHold.toFixed(2)}%)</strong>`;
+      compBox.style.display = 'block';
+
+      // 结合持仓方向 (做多/做空) 给出风险方向提示
+      if (alertSubtextEl) {
+        let alertMsg = '';
+        let isDanger = false;
+
+        if (this.positionType === 'long' || this.positionType === 'spot') {
+          if (diff < 0) {
+            alertMsg = `⚠️ 当前处于做多/现货模式，推算点位低于持仓价，离平仓获利需进一步上冲！`;
+          } else if (diff > 0) {
+            alertMsg = `✅ 当前处于做多/现货模式，推算点位高于持仓价，达到该点位可获得看多收益。`;
+          }
+        } else if (this.positionType === 'short') {
+          if (diff > 0) {
+            alertMsg = `⚠️ 当前处于做空模式，推算点位高于持仓价，反向上涨风险增高！`;
+          } else if (diff < 0) {
+            alertMsg = `✅ 当前处于做空模式，推算点位低于持仓价，达到该点位可获得看空收益。`;
+          }
+        }
+
+        // 强平爆仓警示
+        const liqInfo = this.calculateEstLiquidationPrice(holdPrice, this.leverage);
+        if (liqInfo && !liqInfo.isSpot && liqInfo.price !== null) {
+          if (this.positionType === 'long' && targetPrice <= liqInfo.price) {
+            alertMsg = `🚨 严重警告：推算点位 (${targetPrice.toFixed(precision)}) 已触及或低于预估强平爆仓价 (${liqInfo.price.toFixed(precision)})！`;
+            isDanger = true;
+          } else if (this.positionType === 'short' && targetPrice >= liqInfo.price) {
+            alertMsg = `🚨 严重警告：推算点位 (${targetPrice.toFixed(precision)}) 已触及或高于预估强平爆仓价 (${liqInfo.price.toFixed(precision)})！`;
+            isDanger = true;
+          }
+        }
+
+        alertSubtextEl.textContent = alertMsg;
+        alertSubtextEl.className = isDanger ? 'risk-alert-text danger' : 'risk-alert-text';
+      }
+    } else {
+      compBox.style.display = 'none';
+      if (alertSubtextEl) alertSubtextEl.textContent = '';
+    }
+  }
+
   calculate() {
     const holdPriceEl = document.getElementById('holdPrice');
     const holdPrice = parseFloat(holdPriceEl.value);
     const {
-      openPrice,
       currentPrice
     } = this.currentData;
+    const openPrice = this.getSelectedOpenPrice();
 
-    // 实时更新持仓价相对开盘价的涨跌幅显示
+    // 实时更新持仓价相对开盘价的涨跌幅显示与风险提示对比
     this.updateHoldVsOpenDisplay(holdPrice, openPrice);
+    this.updateRiskComparison();
 
     if (!isFinite(currentPrice)) {
       this.showMessage('请先获取价格数据', 'error');

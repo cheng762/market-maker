@@ -103,40 +103,87 @@
               <h3>开仓设置</h3>
             </div>
 
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label>持仓类型</label>
-                <div class="pos-type-toggle" id="posTypeToggle">
-                  <button type="button" class="pos-type-btn active" data-type="spot">现货</button>
-                  <button type="button" class="pos-type-btn" data-type="long">合约 - 做多</button>
-                  <button type="button" class="pos-type-btn" data-type="short">合约 - 做空</button>
+            <div class="open-pos-container">
+              <!-- 模式与杠杆控制行 -->
+              <div class="pos-mode-row">
+                <div class="form-group pos-type-group">
+                  <label>持仓类型</label>
+                  <div class="pos-type-toggle" id="posTypeToggle">
+                    <button type="button" class="pos-type-btn active" data-type="spot">现货</button>
+                    <button type="button" class="pos-type-btn" data-type="long">合约 - 做多</button>
+                    <button type="button" class="pos-type-btn" data-type="short">合约 - 做空</button>
+                  </div>
+                </div>
+
+                <div class="form-group leverage-inline-group" id="leverageGroup" style="display: none;">
+                  <label for="leverageInput">杠杆倍数</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="leverageInput" min="1" max="125" value="1" placeholder="10" />
+                    <span class="unit-tag">x</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="form-group" id="leverageGroup" style="display: none;">
-                <label for="leverageInput">杠杆倍数 (x)</label>
-                <input type="number" id="leverageInput" min="1" max="125" value="1" placeholder="如: 10" />
-              </div>
+              <!-- 核心价格参数行：持仓价格与距开盘价幅度严格同排 -->
+              <div class="open-pos-price-row">
+                <div class="form-group">
+                  <label for="holdPrice" class="field-label-header">持仓价格</label>
+                  <div class="input-with-button">
+                    <input type="number" id="holdPrice" step="0.00000001" placeholder="输入持仓价格" />
+                    <button type="button" id="syncPositionPrice" class="sync-btn api-feature-btn" title="同步持仓均价">同步</button>
+                  </div>
+                </div>
 
-              <div class="form-group">
-                <label for="holdPrice">持仓价格</label>
-                <div class="input-with-button">
-                  <input type="number" id="holdPrice" step="0.00000001" placeholder="输入持仓价格" />
-                  <button type="button" id="syncPositionPrice" class="sync-btn api-feature-btn" title="同步持仓均价">同步</button>
+                <div class="form-group">
+                  <label for="holdVsOpenPercent" class="field-label-header inline-select-label">
+                    距
+                    <select id="openPriceSelect" class="inline-label-select" title="选择开盘价基准">
+                      <option value="0">当天</option>
+                    </select>
+                    开盘价幅度 (%)
+                  </label>
+                  <input type="number" id="holdVsOpenPercent" step="0.01" placeholder="如: +2.50 或 -1.00" />
+                  <div id="holdVsOpenDiffSubtext" class="input-subtext" style="display: none;"></div>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="holdVsOpenPercent">距开盘价幅度 (%)</label>
-                <input type="number" id="holdVsOpenPercent" step="0.01" placeholder="如: +2.50 或 -1.00" />
-                <div id="holdVsOpenDiffSubtext" class="input-subtext" style="display: none;"></div>
-              </div>
+              <!-- 预估强平爆仓价提示保留在开仓设置里 -->
+              <div id="estLiquidationSubtext" class="input-subtext" style="display: none;"></div>
+            </div>
+          </div>
 
-              <div class="form-group">
-                <label for="marginInput">保证金 / 投入本金 (USDT)</label>
-                <input type="number" id="marginInput" min="0" step="0.01" placeholder="可选填，如: 1000" />
-                <div id="estLiquidationSubtext" class="input-subtext" style="display: none;"></div>
+          <!-- 中间风险提示与开盘点位推演模块 -->
+          <div class="section calc-sub-card risk-warning-card">
+            <div class="card-header risk-card-header">
+              <div class="risk-title-box">
+                <span class="card-step-badge risk-badge">⚠️</span>
+                <h3>风险提示与点位推演</h3>
               </div>
+              <div class="risk-benchmark-wrapper">
+                <span class="risk-benchmark-label">基准开盘价:</span>
+                <select id="riskOpenPriceSelect" class="open-price-select risk-open-select" title="选择 7 天开盘价基准">
+                  <option value="0">当天</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="risk-inputs-grid">
+              <div class="form-group">
+                <label for="riskCalcPercent">相对开盘涨跌幅 (%)</label>
+                <input type="number" id="riskCalcPercent" step="0.01" placeholder="如: +3.50 或 -2.00" />
+              </div>
+              <div class="form-group">
+                <label for="riskCalcPrice">推算目标点位 (USDT)</label>
+                <input type="number" id="riskCalcPrice" step="0.00000001" placeholder="输入推算目标价格" />
+              </div>
+            </div>
+
+            <div id="riskComparisonBox" class="risk-comparison-box" style="display: none;">
+              <div class="comparison-row">
+                <span class="comparison-label">较持仓价对比:</span>
+                <span id="riskHoldDiffText" class="comparison-val">-</span>
+              </div>
+              <div id="riskAlertSubtext" class="risk-alert-text"></div>
             </div>
           </div>
 
@@ -159,8 +206,13 @@
               </div>
 
               <div class="form-group">
-                <label for="dailyExpectPercent">当日涨跌幅预期 (%)（相对开盘价）</label>
+                <label for="dailyExpectPercent" id="dailyExpectPercentLabel">当日涨跌幅预期 (%)（相对开盘价）</label>
                 <input type="number" id="dailyExpectPercent" step="0.01" placeholder="如: 2.50 或 -1.00" />
+              </div>
+
+              <div class="form-group">
+                <label for="marginInput">保证金 / 投入本金 (USDT)</label>
+                <input type="number" id="marginInput" min="0" step="0.01" placeholder="可选填，如: 1000" />
               </div>
 
               <div class="form-group full-width" id="pnlResultCard" style="display: none;">
